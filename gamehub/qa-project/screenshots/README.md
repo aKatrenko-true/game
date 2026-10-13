@@ -18,6 +18,5 @@
 - `GH-DB-018-render-deploy.png` — статус деплоя Render.
 - <img width="1919" height="979" alt="GH-DB-018-render-deploy" src="https://github.com/user-attachments/assets/e9eb3597-14ba-49ec-ad57-e1fd570ce35d" />
 
-После загрузки изображений добавляйте относительные ссылки на них в соответствующие записи `../BUG_REPORTS.md` и тест-кейсы в `../TEST_CASES.md`.
 
-Скриншоты являются доказательствами наблюдений. Не размещайте здесь пароли, токены, cookies или другие секретные данные.
+

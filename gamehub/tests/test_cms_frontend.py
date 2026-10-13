@@ -13,6 +13,7 @@ def test_cms_visibility_is_applied_to_desktop_mobile_navigation_and_ctas():
     assert 'window.__cmsHiddenViews?.has(v)' in app_script
     assert '[data-view="' in public_script and '[data-go="' in public_script
     assert 'window.render("overview")' in public_script
+    assert "teamSection=bySlug.teams" in public_script
 
 
 def test_cms_public_content_is_inserted_as_text_not_executable_html():

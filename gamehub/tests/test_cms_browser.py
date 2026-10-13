@@ -92,4 +92,46 @@ def test_hidden_cms_views_hide_desktop_mobile_navigation_and_block_spa_route(bro
             assert page.locator(f'.mobile-nav [data-view="{view}"]').is_hidden()
         page.evaluate("window.render('teams')")
         assert page.locator("#crumb").inner_text() == "Обзор"
+
+        # Re-enable a view and ensure it becomes available again after CMS refresh.
+        sections = page.request.get(browser_app + "/api/admin/cms/sections",
+                                    headers={"X-Admin-Password": password}).json()
+        teams = next(item for item in sections if item["slug"] == "teams")
+        restored = page.request.patch(
+            browser_app + f"/api/admin/cms/sections/{teams['id']}",
+            headers={"X-Admin-Password": password},
+            data={"visible": True},
+        )
+        assert restored.status == 200, restored.text()
+        page.reload(wait_until="networkidle")
+        assert page.locator('.sidebar [data-view="teams"]').is_visible()
+        assert page.locator('.mobile-nav [data-view="teams"]').is_visible()
+        browser.close()
+
+
+def test_cms_custom_content_is_rendered_as_text_without_executing_markup(browser_app):
+    password = "browser-cms-test-password"
+    with sync_playwright() as p:
+        browser = p.chromium.launch()
+        page = browser.new_page()
+        created = page.request.post(
+            browser_app + "/api/admin/cms/sections",
+            headers={"X-Admin-Password": password},
+            data={
+                "title": "Browser XSS regression",
+                "slug": "browser-xss-regression",
+                "kind": "custom",
+                "body": '<img src=x onerror="window.__cmsXss=1">literal markup',
+                "image_url": "",
+                "visible": True,
+                "sort_order": 999,
+            },
+        )
+        assert created.status == 201, created.text()
+        page.goto(browser_app, wait_until="networkidle")
+        section = page.locator('[data-cms-slug="browser-xss-regression"]')
+        assert section.is_visible()
+        assert section.locator("p").inner_text() == '<img src=x onerror="window.__cmsXss=1">literal markup'
+        assert section.locator("img").count() == 0
+        assert page.evaluate("window.__cmsXss || 0") == 0
         browser.close()

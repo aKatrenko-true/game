@@ -32,8 +32,16 @@ def test_postgres_player_create_and_read():
         assert row[0] == player_id
 
 
-def test_postgres_init_is_idempotent_and_does_not_seed_fake_players():
+def test_postgres_init_is_idempotent_and_seeds_demo_data_when_enabled(monkeypatch):
+    monkeypatch.setenv("SEED_DEMO_DATA", "true")
+    gamehub.init_db()
     with gamehub.db() as con:
+        first_players = con.execute("SELECT COUNT(*) FROM players").fetchone()[0]
+        first_teams = con.execute("SELECT COUNT(*) FROM teams").fetchone()[0]
+        first_matches = con.execute("SELECT COUNT(*) FROM matches").fetchone()[0]
+        assert first_players >= 60
+        assert first_teams >= 6
+        assert first_matches >= 3
         nickname = "PG_KEEP_" + uuid.uuid4().hex[:10]
         con.execute(
             "INSERT INTO players(nickname,game,rank,wins) VALUES(?,?,?,?)",
@@ -41,6 +49,9 @@ def test_postgres_init_is_idempotent_and_does_not_seed_fake_players():
         )
     gamehub.init_db()
     with gamehub.db() as con:
+        assert con.execute("SELECT COUNT(*) FROM players").fetchone()[0] == first_players + 1
+        assert con.execute("SELECT COUNT(*) FROM teams").fetchone()[0] == first_teams
+        assert con.execute("SELECT COUNT(*) FROM matches").fetchone()[0] == first_matches
         assert con.execute(
             "SELECT COUNT(*) FROM players WHERE nickname=?", (nickname,)
         ).fetchone()[0] == 1

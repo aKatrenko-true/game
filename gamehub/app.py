@@ -48,6 +48,20 @@ def init_db():
             user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
             expires_at INTEGER NOT NULL
         );
+        CREATE TABLE IF NOT EXISTS lfg_posts(
+            id INTEGER PRIMARY KEY,
+            user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            game TEXT NOT NULL,
+            post_type TEXT NOT NULL CHECK(post_type IN ('duo','team','stack')),
+            rank TEXT NOT NULL DEFAULT 'Любой',
+            region TEXT NOT NULL DEFAULT 'EU',
+            platform TEXT NOT NULL DEFAULT 'PC',
+            language TEXT NOT NULL DEFAULT 'Русский',
+            play_time TEXT NOT NULL DEFAULT 'Вечером',
+            description TEXT NOT NULL DEFAULT '',
+            status TEXT NOT NULL DEFAULT 'open' CHECK(status IN ('open','closed')),
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
         """)
         user_columns = {row[1] for row in c.execute("PRAGMA table_info(users)").fetchall()}
         if "is_blocked" not in user_columns:
@@ -479,6 +493,60 @@ def update_my_profile(p: ProfilePatch, request: Request):
         c.execute("UPDATE players SET " + ",".join(f"{key}=?" for key in values) + " WHERE user_id=?",
                   [v.strip() if isinstance(v,str) else v for v in values.values()] + [user["id"]])
     return current_user(request)
+
+
+class LFGPostIn(BaseModel):
+    game: str = Field(min_length=2, max_length=40)
+    post_type: str = Field(default="duo", pattern=r"^(duo|team|stack)$")
+    rank: str = Field(default="Любой", max_length=30)
+    region: str = Field(default="EU", max_length=20)
+    platform: str = Field(default="PC", max_length=20)
+    language: str = Field(default="Русский", max_length=30)
+    play_time: str = Field(default="Вечером", max_length=30)
+    description: str = Field(default="", max_length=300)
+
+class LFGStatusPatch(BaseModel):
+    status: str = Field(pattern=r"^(open|closed)$")
+
+@app.get("/api/lfg")
+def list_lfg(game: Optional[str]=None, rank: Optional[str]=None, region: Optional[str]=None, platform: Optional[str]=None, language: Optional[str]=None, status: str="open"):
+    sql = """SELECT l.id,l.user_id,u.nickname,l.game,l.post_type,l.rank,l.region,l.platform,l.language,l.play_time,l.description,l.status,l.created_at
+             FROM lfg_posts l JOIN users u ON u.id=l.user_id WHERE 1=1"""
+    args = []
+    for field, value in (("game",game),("rank",rank),("region",region),("platform",platform),("language",language),("status",status)):
+        if value:
+            sql += f" AND l.{field}=?"
+            args.append(value)
+    sql += " ORDER BY l.created_at DESC,l.id DESC LIMIT 100"
+    with db() as c:
+        return [dict(row) for row in c.execute(sql,args).fetchall()]
+
+@app.post("/api/lfg", status_code=201)
+def create_lfg(p: LFGPostIn, request: Request):
+    user = current_user(request)
+    if not user:
+        raise HTTPException(status_code=401, detail="Войди в аккаунт, чтобы создать объявление")
+    with db() as c:
+        cur = c.execute("""INSERT INTO lfg_posts(user_id,game,post_type,rank,region,platform,language,play_time,description)
+                           VALUES(?,?,?,?,?,?,?,?,?)""",
+                        (user["id"],p.game.strip(),p.post_type,p.rank.strip(),p.region,p.platform,p.language,p.play_time,p.description.strip()))
+        row = c.execute("""SELECT l.id,l.user_id,u.nickname,l.game,l.post_type,l.rank,l.region,l.platform,l.language,l.play_time,l.description,l.status,l.created_at
+                           FROM lfg_posts l JOIN users u ON u.id=l.user_id WHERE l.id=?""",(cur.lastrowid,)).fetchone()
+        return dict(row)
+
+@app.patch("/api/lfg/{post_id}")
+def update_lfg(post_id: int, p: LFGStatusPatch, request: Request):
+    user = current_user(request)
+    if not user:
+        raise HTTPException(status_code=401, detail="Войди в аккаунт")
+    with db() as c:
+        post = c.execute("SELECT id,user_id FROM lfg_posts WHERE id=?",(post_id,)).fetchone()
+        if not post:
+            raise HTTPException(status_code=404, detail="Объявление не найдено")
+        if post["user_id"] != user["id"]:
+            raise HTTPException(status_code=403, detail="Можно изменять только свои объявления")
+        c.execute("UPDATE lfg_posts SET status=? WHERE id=?",(p.status,post_id))
+        return dict(c.execute("SELECT id,status FROM lfg_posts WHERE id=?",(post_id,)).fetchone())
 
 
 @app.get("/api/admin/users")

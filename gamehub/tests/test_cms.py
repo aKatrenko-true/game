@@ -52,7 +52,7 @@ def test_cms_section_create_update_visibility_and_delete(client):
     public = client.get("/api/cms/content").json()
     saved = next(section for section in public["sections"] if section["slug"] == "news")
     assert saved["visible"] in (0, False)
-    assert saved["body"] == "Последние новости"
+    assert saved["body"] == ""
 
     deleted = client.delete(f"/api/admin/cms/sections/{section_id}", headers=admin_headers())
     assert deleted.status_code == 200

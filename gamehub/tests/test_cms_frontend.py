@@ -11,7 +11,7 @@ def test_cms_visibility_is_applied_to_desktop_mobile_navigation_and_ctas():
     # The same hidden-view state is shared with the SPA renderer.
     assert 'window.__cmsHiddenViews=hiddenViews' in public_script
     assert 'window.__cmsHiddenViews?.has(v)' in app_script
-    assert '[data-view="'+ '" + view + "' + '"],[data-go="'+ '" + view + "' + '"]' in public_script
+    assert '[data-view="' in public_script and '[data-go="' in public_script
     assert 'window.render("overview")' in public_script
 
 

@@ -251,6 +251,18 @@ def admin_summary(request: Request):
             "warDogsPlayers": c.execute("SELECT COUNT(*) FROM players WHERE game='WarDogs'").fetchone()[0],
         }
 
+@app.post("/api/admin/players", status_code=201)
+def admin_create_player(p: PlayerIn, request: Request):
+    check_admin(request)
+    with db() as c:
+        try:
+            cur = c.execute("""INSERT INTO players(nickname,game,rank,region,play_time,play_style,looking_for)
+                               VALUES(?,?,?,?,?,?,?)""",
+                            (p.nickname,p.game.strip(),p.rank.strip(),p.region,p.play_time,p.play_style,p.looking_for))
+            return dict(c.execute("SELECT * FROM players WHERE id=?", (cur.lastrowid,)).fetchone())
+        except sqlite3.IntegrityError:
+            raise HTTPException(status_code=409, detail="Никнейм уже существует")
+
 @app.patch("/api/admin/players/{player_id}")
 def admin_update_player(player_id: int, p: AdminPlayerPatch, request: Request):
     check_admin(request)

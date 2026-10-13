@@ -47,6 +47,7 @@
   if(hiddenViews.size&&typeof window.render==="function")window.render("overview");
   // Sort the primary homepage areas using CMS order. Players/matches share one two-column area.
   const main=document.querySelector("main");
+  const directory=document.querySelector(".directory");
   if(main){
    const groups=[
     {el:heroEl,items:[hero].filter(Boolean)},

@@ -9,13 +9,139 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 BASE = Path(__file__).resolve().parent
+DATABASE_URL = os.getenv("DATABASE_URL", "").strip()
 DB_PATH = Path(os.getenv("GAMEHUB_DB", BASE / "gamehub.db"))
+USE_POSTGRES = DATABASE_URL.startswith(("postgres://", "postgresql://"))
+
+class HybridRow(dict):
+    """A row supporting both SQLite-style numeric and named column access."""
+    def __init__(self, columns, values):
+        super().__init__(zip(columns, values))
+        self._values = tuple(values)
+    def __getitem__(self, key):
+        if isinstance(key, int):
+            return self._values[key]
+        return super().__getitem__(key)
+
+class CompatCursor:
+    def __init__(self, cursor, columns=None, lastrowid=None):
+        self._cursor = cursor
+        self._columns = columns
+        self.lastrowid = lastrowid
+    @property
+    def rowcount(self):
+        return self._cursor.rowcount
+    def _row(self, row):
+        if row is None:
+            return None
+        if isinstance(row, dict):
+            return HybridRow(row.keys(), row.values())
+        return HybridRow(self._columns or [d[0] for d in self._cursor.description], row)
+    def fetchone(self):
+        return self._row(self._cursor.fetchone())
+    def fetchall(self):
+        return [self._row(r) for r in self._cursor.fetchall()]
+
+class PostgresConnection:
+    def __init__(self, url):
+        import psycopg
+        from psycopg.rows import dict_row
+        self._psycopg = psycopg
+        self._con = psycopg.connect(url, row_factory=dict_row)
+    def __enter__(self):
+        return self
+    def __exit__(self, exc_type, exc, tb):
+        if exc_type:
+            self._con.rollback()
+        else:
+            self._con.commit()
+        self._con.close()
+    def execute(self, sql, args=()):
+        sql = sql.strip()
+        if sql.upper().startswith("PRAGMA TABLE_INFO("):
+            table = sql[sql.find("(")+1:sql.rfind(")")].strip().strip('"')
+            cur = self._con.execute(
+                "SELECT ordinal_position AS cid, column_name AS name, data_type AS type, "
+                "0 AS notnull, NULL AS dflt_value, ordinal_position AS pk "
+                "FROM information_schema.columns WHERE table_schema='public' AND table_name=%s "
+                "ORDER BY ordinal_position", (table,))
+            rows = cur.fetchall()
+            return CompatCursor(_RowsCursor([
+                (i, row["name"], row["type"], 0, None, i if row["name"] == "id" else 0)
+                for i, row in enumerate(rows)
+            ], ["cid","name","type","notnull","dflt_value","pk"]))
+        if sql.upper().startswith("INSERT OR IGNORE INTO"):
+            sql = sql.replace("INSERT OR IGNORE INTO", "INSERT INTO", 1)
+            if " ON CONFLICT " not in sql.upper():
+                sql += " ON CONFLICT DO NOTHING"
+        # Use serial identity columns for new tables.
+        sql = sql.replace("INTEGER PRIMARY KEY,", "BIGSERIAL PRIMARY KEY,")
+        sql = sql.replace("INTEGER PRIMARY KEY)", "BIGSERIAL PRIMARY KEY)")
+        sql = sql.replace("?", "%s")
+        table = None
+        if sql.upper().startswith("INSERT INTO"):
+            try:
+                table = sql.split(None, 3)[2].split("(")[0].strip('"')
+            except Exception:
+                table = None
+        has_returning = " RETURNING " in sql.upper()
+        needs_id = table in {"players","teams","matches","users","lfg_posts"} and not has_returning and "ON CONFLICT DO NOTHING" not in sql.upper()
+        if needs_id:
+            sql += " RETURNING id"
+        cur = self._con.execute(sql, args)
+        lastrowid = None
+        if needs_id:
+            row = cur.fetchone()
+            if row:
+                lastrowid = row["id"]
+            # Keep cursor behavior predictable for callers that only need lastrowid.
+            cur = _RowsCursor([], [])
+        return CompatCursor(cur, lastrowid=lastrowid)
+    def executemany(self, sql, seq):
+        sql = sql.replace("?", "%s")
+        if sql.upper().startswith("INSERT OR IGNORE INTO"):
+            sql = sql.replace("INSERT OR IGNORE INTO", "INSERT INTO", 1)
+            if " ON CONFLICT " not in sql.upper():
+                sql += " ON CONFLICT DO NOTHING"
+        sql = sql.replace("INTEGER PRIMARY KEY,", "BIGSERIAL PRIMARY KEY,")
+        sql = sql.replace("INTEGER PRIMARY KEY)", "BIGSERIAL PRIMARY KEY)")
+        cur = self._con.cursor()
+        cur.executemany(sql, seq)
+        return CompatCursor(cur)
+    def executescript(self, script):
+        for statement in script.split(";"):
+            if statement.strip():
+                self.execute(statement)
+        return CompatCursor(_RowsCursor([], []))
+
+class _RowsCursor:
+    def __init__(self, rows, columns):
+        self._rows = list(rows)
+        self._columns = columns
+        self.description = [(c,) for c in columns] if columns else None
+        self.rowcount = len(self._rows)
+    def fetchone(self):
+        return self._rows.pop(0) if self._rows else None
+    def fetchall(self):
+        rows, self._rows = self._rows, []
+        return rows
 
 def db():
+    if USE_POSTGRES:
+        return PostgresConnection(DATABASE_URL)
     con = sqlite3.connect(DB_PATH)
     con.row_factory = sqlite3.Row
     con.execute("PRAGMA foreign_keys=ON")
     return con
+
+def is_integrity_error(exc):
+    if isinstance(exc, sqlite3.IntegrityError):
+        return True
+    try:
+        import psycopg
+        return isinstance(exc, psycopg.IntegrityError)
+    except ImportError:
+        return False
 
 def init_db():
     with db() as c:
@@ -24,7 +150,6 @@ def init_db():
         CREATE TABLE IF NOT EXISTS teams(id INTEGER PRIMARY KEY, name TEXT UNIQUE NOT NULL, game TEXT NOT NULL, description TEXT NOT NULL DEFAULT '');
         CREATE TABLE IF NOT EXISTS matches(id INTEGER PRIMARY KEY, game TEXT NOT NULL, team_a TEXT NOT NULL, team_b TEXT NOT NULL, score_a INTEGER NOT NULL DEFAULT 0 CHECK(score_a>=0), score_b INTEGER NOT NULL DEFAULT 0 CHECK(score_b>=0), status TEXT NOT NULL DEFAULT 'Scheduled' CHECK(status IN ('Scheduled','Live','Completed')), scheduled_at TEXT NOT NULL);
         """)
-        # Safe migrations for databases created by older GameHub versions.
         player_columns = {row[1] for row in c.execute("PRAGMA table_info(players)").fetchall()}
         for column, definition in [
             ("region", "TEXT NOT NULL DEFAULT 'EU'"),
@@ -66,6 +191,7 @@ def init_db():
         user_columns = {row[1] for row in c.execute("PRAGMA table_info(users)").fetchall()}
         if "is_blocked" not in user_columns:
             c.execute("ALTER TABLE users ADD COLUMN is_blocked INTEGER NOT NULL DEFAULT 0")
+        # Seed demo content only when each table is empty; never overwrite user records.
         names = [
           ("Aveli","CS2","Gold Nova",42),("v1exa","Valorant","Diamond",67),("Ch1ksa","CS2","Master Guardian",31),("pixelfox","Apex Legends","Platinum",54),
           ("Nexa","CS2","Legendary Eagle",29),("LunaByte","Valorant","Ascendant",51),("RiftWalker","Apex Legends","Diamond",36),("NovaRush","CS2","Gold Nova",18),
@@ -87,14 +213,16 @@ def init_db():
           ("NightPixel","WarDogs","Elite",58),("RiftRunner","WarDogs","Veteran",25),("NovaStrike","WarDogs","Rookie",11),
           ("ToxicRanger","WarDogs","Veteran",30),("LimeOps","WarDogs","Elite",47),("DriftWolf","WarDogs","Veteran",23)
         ]
-        c.executemany("INSERT OR IGNORE INTO players(nickname,game,rank,wins) VALUES(?,?,?,?)", names)
-        c.executemany("INSERT OR IGNORE INTO teams(name,game,description) VALUES(?,?,?)", [
-          ("Night Owls","CS2","Late-night ranked squad. Teamwork first."),
-          ("Pixel Rebels","Valorant","Competitive and always improving."),
-          ("Critical Five","CS2","Looking for focused players and good comms."),
-          ("WarDogs Alpha","WarDogs","Тактический состав WarDogs. Ищем активных игроков."),
-          ("WarDogs Wolves","WarDogs","Команда для совместных матчей и тренировок."),
-          ("WarDogs Night Raid","WarDogs","Собираем сыгранный состав для вечерних игр.")])
+        if c.execute("SELECT COUNT(*) FROM players").fetchone()[0] == 0:
+            c.executemany("INSERT INTO players(nickname,game,rank,wins) VALUES(?,?,?,?)", names)
+        if c.execute("SELECT COUNT(*) FROM teams").fetchone()[0] == 0:
+            c.executemany("INSERT INTO teams(name,game,description) VALUES(?,?,?)", [
+              ("Night Owls","CS2","Late-night ranked squad. Teamwork first."),
+              ("Pixel Rebels","Valorant","Competitive and always improving."),
+              ("Critical Five","CS2","Looking for focused players and good comms."),
+              ("WarDogs Alpha","WarDogs","Тактический состав WarDogs. Ищем активных игроков."),
+              ("WarDogs Wolves","WarDogs","Команда для совместных матчей и тренировок."),
+              ("WarDogs Night Raid","WarDogs","Собираем сыгранный состав для вечерних игр.")])
         if c.execute("SELECT COUNT(*) FROM matches").fetchone()[0] == 0:
             c.executemany("INSERT INTO matches(game,team_a,team_b,score_a,score_b,status,scheduled_at) VALUES(?,?,?,?,?,?,?)",[
               ("CS2","Night Owls","Critical Five",0,0,"Scheduled","2026-10-15 19:00"),
@@ -164,7 +292,9 @@ def create_player(p: PlayerIn):
         try:
             cur=c.execute("INSERT INTO players(nickname,game,rank,region,play_time,play_style,looking_for) VALUES(?,?,?,?,?,?,?)",(p.nickname,p.game.strip(),p.rank.strip(),p.region,p.play_time,p.play_style,p.looking_for))
             return dict(c.execute("SELECT * FROM players WHERE id=?",(cur.lastrowid,)).fetchone())
-        except sqlite3.IntegrityError:
+        except Exception as exc:
+            if not is_integrity_error(exc):
+                raise
             raise HTTPException(status_code=409,detail="Nickname already exists")
 
 @app.get("/api/teams")
@@ -179,7 +309,9 @@ def create_team(p: TeamIn):
         try:
             cur=c.execute("INSERT INTO teams(name,game,description) VALUES(?,?,?)",(p.name.strip(),p.game.strip(),p.description.strip()))
             return dict(c.execute("SELECT * FROM teams WHERE id=?",(cur.lastrowid,)).fetchone())
-        except sqlite3.IntegrityError: raise HTTPException(status_code=409,detail="Team name already exists")
+        except Exception as exc:
+            if not is_integrity_error(exc):
+                raise raise HTTPException(status_code=409,detail="Team name already exists")
 
 @app.get("/api/matches")
 def matches(status: Optional[str]=None,game: Optional[str]=None):
@@ -274,7 +406,9 @@ def admin_create_player(p: PlayerIn, request: Request):
                                VALUES(?,?,?,?,?,?,?)""",
                             (p.nickname,p.game.strip(),p.rank.strip(),p.region,p.play_time,p.play_style,p.looking_for))
             return dict(c.execute("SELECT * FROM players WHERE id=?", (cur.lastrowid,)).fetchone())
-        except sqlite3.IntegrityError:
+        except Exception as exc:
+            if not is_integrity_error(exc):
+                raise
             raise HTTPException(status_code=409, detail="Никнейм уже существует")
 
 @app.patch("/api/admin/players/{player_id}")
@@ -310,7 +444,9 @@ def admin_create_team(p: TeamIn, request: Request):
         try:
             cur = c.execute("INSERT INTO teams(name,game,description) VALUES(?,?,?)", (p.name.strip(), p.game.strip(), p.description.strip()))
             return dict(c.execute("SELECT * FROM teams WHERE id=?", (cur.lastrowid,)).fetchone())
-        except sqlite3.IntegrityError:
+        except Exception as exc:
+            if not is_integrity_error(exc):
+                raise
             raise HTTPException(status_code=409, detail="Команда с таким названием уже существует")
 
 @app.delete("/api/admin/teams/{team_id}")
@@ -443,7 +579,9 @@ def register_account(p: RegisterIn, request: Request):
             c.execute("""INSERT INTO players(nickname,game,rank,region,play_time,play_style,looking_for,user_id)
                          VALUES(?,?,?,?,?,?,?,?)""",
                       (nickname,p.game.strip(),p.rank.strip(),p.region,p.play_time,p.play_style,p.looking_for,user_id))
-        except sqlite3.IntegrityError:
+        except Exception as exc:
+            if not is_integrity_error(exc):
+                raise
             raise HTTPException(status_code=409, detail="Не удалось создать аккаунт: проверь никнейм")
     from fastapi.responses import JSONResponse
     response = JSONResponse({"ok": True, "nickname": nickname})
@@ -608,7 +746,9 @@ def admin_update_team(team_id: int, p: AdminTeamPatch, request: Request):
             raise HTTPException(status_code=404, detail="Команда не найдена")
         try:
             c.execute("UPDATE teams SET "+",".join(f"{key}=?" for key in values)+" WHERE id=?", [v.strip() if isinstance(v,str) else v for v in values.values()]+[team_id])
-        except sqlite3.IntegrityError:
+        except Exception as exc:
+            if not is_integrity_error(exc):
+                raise
             raise HTTPException(status_code=409, detail="Название команды уже занято")
         return dict(c.execute("SELECT * FROM teams WHERE id=?", (team_id,)).fetchone())
 

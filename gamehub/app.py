@@ -31,20 +31,36 @@ def init_db():
           ("RavenQ","CS2","Gold Nova",16),("Vanta","Valorant","Diamond",39),("LimeCat","Apex Legends","Platinum",27),("GhostTap","CS2","Master Guardian",44),
           ("ArcticFox","Valorant","Ascendant",57),("K0met","CS2","Silver Elite",9),("MochiAim","Apex Legends","Gold",19),("Drift","Dota 2","Legend",28),
           ("ByteMe","CS2","Legendary Eagle",52),("SovaMain","Valorant","Platinum",26),("KarmaFPS","CS2","Gold Nova",22),("Orbit","Apex Legends","Diamond",41),
-          ("ToxicTea","Valorant","Gold",14),("ClutchQueen","CS2","Master Guardian",49)
+          ("ToxicTea","Valorant","Gold",14),("ClutchQueen","CS2","Master Guardian",49),
+          ("WarVixen","WarDogs","Veteran",38),("Ch1ksa_WD","WarDogs","Elite",52),("AveliFox","WarDogs","Veteran",44),
+          ("V1perWD","WarDogs","Elite",61),("NoxByte","WarDogs","Rookie",17),("RogueMira","WarDogs","Veteran",33),
+          ("KiraStrike","WarDogs","Elite",48),("FoxUnit","WarDogs","Veteran",29),("NightK0met","WarDogs","Rookie",12),
+          ("RavenOps","WarDogs","Elite",57),("PixelRaider","WarDogs","Veteran",35),("VexaCore","WarDogs","Elite",46),
+          ("GhostSquad","WarDogs","Veteran",31),("LunaTrigger","WarDogs","Rookie",14),("ZeroRecoil","WarDogs","Elite",63),
+          ("MochiTactical","WarDogs","Veteran",26),("FrostUnit","WarDogs","Rookie",19),("OrbitDog","WarDogs","Elite",41),
+          ("NexaWolf","WarDogs","Veteran",37),("ClutchFox","WarDogs","Elite",55),("DustViper","WarDogs","Rookie",21),
+          ("VantaOps","WarDogs","Veteran",32),("EchoRanger","WarDogs","Elite",49),("ArcticUnit","WarDogs","Veteran",28),
+          ("ByteHunter","WarDogs","Elite",43),("KarmaWolf","WarDogs","Rookie",16),("SovaTactical","WarDogs","Veteran",34),
+          ("NightPixel","WarDogs","Elite",58),("RiftRunner","WarDogs","Veteran",25),("NovaStrike","WarDogs","Rookie",11),
+          ("ToxicRanger","WarDogs","Veteran",30),("LimeOps","WarDogs","Elite",47),("DriftWolf","WarDogs","Veteran",23)
         ]
-        if c.execute("SELECT COUNT(*) FROM players").fetchone()[0] == 0:
-            c.executemany("INSERT INTO players(nickname,game,rank,wins) VALUES(?,?,?,?)", names)
-        if c.execute("SELECT COUNT(*) FROM teams").fetchone()[0] == 0:
-            c.executemany("INSERT INTO teams(name,game,description) VALUES(?,?,?)", [
-              ("Night Owls","CS2","Late-night ranked squad. Teamwork first."),
-              ("Pixel Rebels","Valorant","Competitive and always improving."),
-              ("Critical Five","CS2","Looking for focused players and good comms.")])
+        c.executemany("INSERT OR IGNORE INTO players(nickname,game,rank,wins) VALUES(?,?,?,?)", names)
+        c.executemany("INSERT OR IGNORE INTO teams(name,game,description) VALUES(?,?,?)", [
+          ("Night Owls","CS2","Late-night ranked squad. Teamwork first."),
+          ("Pixel Rebels","Valorant","Competitive and always improving."),
+          ("Critical Five","CS2","Looking for focused players and good comms."),
+          ("WarDogs Alpha","WarDogs","Тактический состав WarDogs. Ищем активных игроков."),
+          ("WarDogs Wolves","WarDogs","Команда для совместных матчей и тренировок."),
+          ("WarDogs Night Raid","WarDogs","Собираем сыгранный состав для вечерних игр.")])
         if c.execute("SELECT COUNT(*) FROM matches").fetchone()[0] == 0:
             c.executemany("INSERT INTO matches(game,team_a,team_b,score_a,score_b,status,scheduled_at) VALUES(?,?,?,?,?,?,?)",[
               ("CS2","Night Owls","Critical Five",0,0,"Scheduled","2026-10-15 19:00"),
               ("Valorant","Pixel Rebels","Radiant Core",13,9,"Completed","2026-10-10 18:30"),
               ("CS2","Critical Five","Dust Devils",0,0,"Live","2026-10-12 20:00")])
+        if c.execute("SELECT COUNT(*) FROM matches WHERE game='WarDogs'").fetchone()[0] == 0:
+            c.executemany("INSERT INTO matches(game,team_a,team_b,score_a,score_b,status,scheduled_at) VALUES(?,?,?,?,?,?,?)",[
+              ("WarDogs","WarDogs Alpha","WarDogs Wolves",0,0,"Scheduled","2026-10-17 19:00"),
+              ("WarDogs","WarDogs Night Raid","WarDogs Alpha",0,0,"Scheduled","2026-10-18 20:00")])
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

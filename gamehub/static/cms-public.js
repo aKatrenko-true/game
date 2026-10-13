@@ -44,7 +44,7 @@
    const groups=[
     {el:heroEl,items:[hero].filter(Boolean)},
     {el:gameEl,items:[games].filter(Boolean)},
-    {el:document.querySelector(".stats"),items:[]},
+    {el:document.querySelector(".stats"),items:[{sort_order:25}]},
     {el:document.querySelector(".columns"),items:[playerSection,matchSection].filter(Boolean)},
     {el:directory,items:[teamSection].filter(Boolean)}
    ].filter(g=>g.el);

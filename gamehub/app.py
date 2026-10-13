@@ -622,7 +622,7 @@ def cms_set_setting(key: str, p: CMSSettingIn, request: Request):
 @app.get("/api/cms/content")
 def cms_public_content():
     with db() as c:
-        sections=[dict(r) for r in c.execute("SELECT id,title,slug,kind,body,image_url,visible,sort_order FROM cms_sections ORDER BY sort_order,id").fetchall()]
+        sections=[dict(r) for r in c.execute("""SELECT id,CASE WHEN visible=1 THEN title ELSE '' END AS title,slug,kind,CASE WHEN visible=1 THEN body ELSE '' END AS body,CASE WHEN visible=1 THEN image_url ELSE '' END AS image_url,visible,sort_order FROM cms_sections ORDER BY sort_order,id""").fetchall()]
         settings={r["key"]:r["value"] for r in c.execute("SELECT key,value FROM cms_settings").fetchall()}
     return {"sections":sections,"settings":settings}
 

@@ -177,3 +177,27 @@ def test_sqlite_migration_script_copies_data_and_is_rerunnable(tmp_path, monkeyp
         assert con.execute("SELECT COUNT(*) FROM users WHERE id=71").fetchone()[0] == 1
         assert con.execute("SELECT COUNT(*) FROM players WHERE id=81").fetchone()[0] == 1
     assert source_path.exists()
+
+
+
+def test_postgres_cms_section_create_and_public_read(monkeypatch):
+    from fastapi.testclient import TestClient
+
+    monkeypatch.setenv("ADMIN_PASSWORD", "postgres-cms-test-password")
+    slug = "pg-cms-" + uuid.uuid4().hex[:10]
+    with TestClient(gamehub.app) as client:
+        created = client.post("/api/admin/cms/sections",
+            headers={"X-Admin-Password": "postgres-cms-test-password"},
+            json={"title": "Postgres CMS", "slug": slug, "kind": "custom",
+                  "body": "CMS database round trip", "visible": True, "sort_order": 9000})
+        assert created.status_code == 201, created.text
+        section_id = created.json()["id"]
+        assert isinstance(section_id, int) and section_id > 0
+        public = client.get("/api/cms/content")
+        assert public.status_code == 200
+        section = next(s for s in public.json()["sections"] if s["slug"] == slug)
+        assert section["id"] == section_id
+        assert section["body"] == "CMS database round trip"
+        deleted = client.delete(f"/api/admin/cms/sections/{section_id}",
+            headers={"X-Admin-Password": "postgres-cms-test-password"})
+        assert deleted.status_code == 200, deleted.text

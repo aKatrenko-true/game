@@ -193,10 +193,10 @@ def init_db():
         user_columns = {row[1] for row in c.execute("PRAGMA table_info(users)").fetchall()}
         if "is_blocked" not in user_columns:
             c.execute("ALTER TABLE users ADD COLUMN is_blocked INTEGER NOT NULL DEFAULT 0")
-        # PostgreSQL is left empty until the SQLite migration is run.
-        # Demo seed data is only for local/test SQLite databases.
-        if not USE_POSTGRES:
-            # Seed demo content only when each table is empty; never overwrite user records.
+        # Seed demo content on a new database only when explicitly enabled.
+        # This supports fresh PostgreSQL setup without importing old SQLite data.
+        if not USE_POSTGRES or os.getenv("SEED_DEMO_DATA", "").strip().lower() == "true":
+            # Seed demo content only when each table is empty; never overwrite existing records.
             names = [
               ("Aveli","CS2","Gold Nova",42),("v1exa","Valorant","Diamond",67),("Ch1ksa","CS2","Master Guardian",31),("pixelfox","Apex Legends","Platinum",54),
               ("Nexa","CS2","Legendary Eagle",29),("LunaByte","Valorant","Ascendant",51),("RiftWalker","Apex Legends","Diamond",36),("NovaRush","CS2","Gold Nova",18),

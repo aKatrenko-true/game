@@ -21,8 +21,13 @@
     }
    }
   }
-  const mappings={games:".game-showcase",players:".columns",teams:".columns",matches:".columns"};
-  for(const [slug,selector] of Object.entries(mappings)){const s=bySlug[slug];if(s&&!s.visible&&slug==="games"){const el=document.querySelector(selector);if(el)el.hidden=true}}
+  const games=bySlug.games;if(games&&!games.visible){const el=document.querySelector(".game-showcase");if(el)el.hidden=true;}
+  const players=bySlug.players, matches=bySlug.matches;
+  if(players&&!players.visible){const el=document.querySelector("#featured")?.closest(".panel");if(el)el.hidden=true;}
+  if(matches&&!matches.visible){const el=document.querySelector("#featured-matches")?.closest(".panel");if(el)el.hidden=true;}
+  const teams=bySlug.teams;if(teams&&!teams.visible){const el=[...document.querySelectorAll(".nav,[data-view],.mobile-tab")].find(n=>n.textContent.toLowerCase().includes("команд"));if(el)el.hidden=true;}
+  // Apply custom image to the hero and section cover blocks.
+  for(const s of sections){if(!s.visible)continue;const target=document.querySelector('[data-cms-slug="'+CSS.escape(s.slug)+'"]');if(target&&s.image_url){target.style.backgroundImage="linear-gradient(180deg,#080b1255,#080b12dd),url("+JSON.stringify(s.image_url)+")";target.style.backgroundSize="cover";target.style.backgroundPosition="center";}}
   // Allow future custom sections to be rendered without changing app logic.
   const custom=sections.filter(s=>s.visible&&["custom","gallery","content"].includes(s.kind));
   const main=document.querySelector("main");

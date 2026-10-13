@@ -40,3 +40,51 @@ def test_create_match_against_self_rejected():
     with TestClient(gamehub.app) as client:
         r = client.post("/api/matches",json={"game":"CS2","team_a":"Night Owls","team_b":"night owls","scheduled_at":"2026-10-20 18:00"})
         assert r.status_code == 422
+
+def test_lfg_requires_login_to_create():
+    with TestClient(gamehub.app) as client:
+        r = client.post("/api/lfg", json={"game":"CS2","post_type":"duo"})
+        assert r.status_code == 401
+
+def test_lfg_create_and_list_for_authenticated_user():
+    with TestClient(gamehub.app) as client:
+        register = client.post("/api/auth/register", json={
+            "nickname":"LfgTester_01","password":"TestPassword_123",
+            "game":"CS2","rank":"Gold Nova","region":"EU",
+            "play_time":"Вечером","play_style":"Любой","looking_for":"Напарника"
+        })
+        assert register.status_code == 201
+        created = client.post("/api/lfg", json={
+            "game":"CS2","post_type":"duo","rank":"Gold Nova","region":"EU",
+            "platform":"PC","language":"Русский","play_time":"Вечером",
+            "description":"Ищу напарника для рейтинга"
+        })
+        assert created.status_code == 201
+        assert created.json()["nickname"] == "LfgTester_01"
+        listing = client.get("/api/lfg", params={"game":"CS2","region":"EU"})
+        assert listing.status_code == 200
+        assert any(x["id"] == created.json()["id"] for x in listing.json())
+
+def test_lfg_validation_rejects_unknown_post_type():
+    with TestClient(gamehub.app) as client:
+        register = client.post("/api/auth/register", json={
+            "nickname":"LfgTester_02","password":"TestPassword_123","game":"CS2"
+        })
+        assert register.status_code == 201
+        r = client.post("/api/lfg", json={"game":"CS2","post_type":"whatever"})
+        assert r.status_code == 422
+
+def test_lfg_user_cannot_close_another_users_post():
+    with TestClient(gamehub.app) as first:
+        assert first.post("/api/auth/register", json={
+            "nickname":"LfgOwner_01","password":"TestPassword_123","game":"CS2"
+        }).status_code == 201
+        post = first.post("/api/lfg", json={"game":"CS2","post_type":"duo"})
+        assert post.status_code == 201
+        post_id = post.json()["id"]
+    with TestClient(gamehub.app) as second:
+        assert second.post("/api/auth/register", json={
+            "nickname":"LfgOther_01","password":"TestPassword_123","game":"CS2"
+        }).status_code == 201
+        r = second.patch(f"/api/lfg/{post_id}", json={"status":"closed"})
+        assert r.status_code == 403

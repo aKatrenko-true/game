@@ -151,11 +151,11 @@ def test_cms_admin_login_and_appearance_editor_work_in_browser(browser_app):
 
         page.locator("#cms-password").fill("wrong-password")
         page.locator("#cms-login-form button").click()
-        assert page.locator("#cms-login-error").inner_text() != ""
+        page.wait_for_function("document.querySelector('#cms-login-error')?.textContent.trim().length > 0")
 
         page.locator("#cms-password").fill("browser-cms-test-password")
         page.locator("#cms-login-form button").click()
-        assert page.locator("#cms-app").is_visible()
+        page.wait_for_function("document.querySelector('#cms-app') && !document.querySelector('#cms-app').hidden")
 
         page.locator('[data-cms-tab="appearance"]').click()
         page.locator('input[name="site_title"]').fill("GameHub Browser Test")
@@ -185,7 +185,7 @@ def test_cms_media_upload_saves_image_to_selected_section(browser_app, tmp_path)
         page.goto(browser_app + "/admin/cms", wait_until="networkidle")
         page.locator("#cms-password").fill(password)
         page.locator("#cms-login-form button").click()
-        assert page.locator("#cms-app").is_visible()
+        page.wait_for_function("document.querySelector('#cms-app') && !document.querySelector('#cms-app').hidden")
 
         page.locator('[data-cms-tab="media"]').click()
         page.locator("#media-file").set_input_files({

@@ -1,5 +1,5 @@
-const CACHE_NAME = "gamehub-shell-v8";
-const SHELL = ["/", "/static/styles.css?v=lfg2026a", "/static/app.js?v=lfg2026a", "/static/manifest.webmanifest", "/static/icon.svg"];
+const CACHE_NAME = "gamehub-shell-v9";
+const SHELL = ["/", "/static/styles.css?v=lfg2026a", "/static/app.js?v=lfg2026a", "/static/lfg.js?v=lfg2026a", "/static/manifest.webmanifest", "/static/icon.svg"];
 self.addEventListener("install", event => {
   event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(SHELL)).then(() => self.skipWaiting()));
 });

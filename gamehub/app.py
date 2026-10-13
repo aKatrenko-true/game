@@ -58,6 +58,8 @@ class PostgresConnection:
         self._con.close()
     def execute(self, sql, args=()):
         sql = sql.strip()
+        # PostgreSQL requires an explicit cast when timestamp defaults target TEXT columns.
+        sql = sql.replace("DEFAULT CURRENT_TIMESTAMP", "DEFAULT (CURRENT_TIMESTAMP::text)")
         if sql.upper().startswith("PRAGMA TABLE_INFO("):
             table = sql[sql.find("(")+1:sql.rfind(")")].strip().strip('"')
             cur = self._con.execute(

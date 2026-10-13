@@ -40,6 +40,7 @@ def init_db():
             id INTEGER PRIMARY KEY,
             nickname TEXT NOT NULL UNIQUE,
             password_hash TEXT NOT NULL,
+            is_blocked INTEGER NOT NULL DEFAULT 0,
             created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
         );
         CREATE TABLE IF NOT EXISTS sessions(
@@ -48,6 +49,9 @@ def init_db():
             expires_at INTEGER NOT NULL
         );
         """)
+        user_columns = {row[1] for row in c.execute("PRAGMA table_info(users)").fetchall()}
+        if "is_blocked" not in user_columns:
+            c.execute("ALTER TABLE users ADD COLUMN is_blocked INTEGER NOT NULL DEFAULT 0")
         names = [
           ("Aveli","CS2","Gold Nova",42),("v1exa","Valorant","Diamond",67),("Ch1ksa","CS2","Master Guardian",31),("pixelfox","Apex Legends","Platinum",54),
           ("Nexa","CS2","Legendary Eagle",29),("LunaByte","Valorant","Ascendant",51),("RiftWalker","Apex Legends","Diamond",36),("NovaRush","CS2","Gold Nova",18),
@@ -204,8 +208,33 @@ def check_admin(request: Request):
         raise HTTPException(status_code=401, detail="Неверный пароль администратора")
 
 class AdminPlayerPatch(BaseModel):
+    nickname: Optional[str] = Field(default=None, min_length=3, max_length=20, pattern=r"^[A-Za-z0-9_]+$")
+    game: Optional[str] = Field(default=None, min_length=2, max_length=40)
     rank: Optional[str] = Field(default=None, max_length=30)
     wins: Optional[int] = Field(default=None, ge=0, le=999999)
+    region: Optional[str] = Field(default=None, max_length=20)
+    play_time: Optional[str] = Field(default=None, max_length=30)
+    play_style: Optional[str] = Field(default=None, max_length=30)
+    looking_for: Optional[str] = Field(default=None, max_length=30)
+
+class AdminUserPatch(BaseModel):
+    nickname: Optional[str] = Field(default=None, min_length=3, max_length=20, pattern=r"^[A-Za-z0-9_]+$")
+    password: Optional[str] = Field(default=None, min_length=10, max_length=128)
+    is_blocked: Optional[bool] = None
+
+class AdminTeamPatch(BaseModel):
+    name: Optional[str] = Field(default=None, min_length=3, max_length=40)
+    game: Optional[str] = Field(default=None, min_length=2, max_length=40)
+    description: Optional[str] = Field(default=None, max_length=240)
+
+class AdminMatchPatch(BaseModel):
+    game: Optional[str] = Field(default=None, min_length=2, max_length=40)
+    team_a: Optional[str] = Field(default=None, min_length=2, max_length=40)
+    team_b: Optional[str] = Field(default=None, min_length=2, max_length=40)
+    score_a: Optional[int] = Field(default=None, ge=0, le=999)
+    score_b: Optional[int] = Field(default=None, ge=0, le=999)
+    status: Optional[str] = None
+    scheduled_at: Optional[str] = Field(default=None, min_length=10, max_length=30)
 
 @app.get("/admin", include_in_schema=False)
 def admin_page():
@@ -337,11 +366,11 @@ def current_user(request: Request):
         return None
     token_hash = hashlib.sha256(token.encode()).hexdigest()
     with db() as c:
-        row = c.execute("""SELECT u.id,u.nickname,u.created_at,p.id AS player_id,p.game,p.rank,p.wins,
+        row = c.execute("""SELECT u.id,u.nickname,u.created_at,u.is_blocked,p.id AS player_id,p.game,p.rank,p.wins,
                            p.region,p.play_time,p.play_style,p.looking_for
                            FROM sessions s JOIN users u ON u.id=s.user_id
                            LEFT JOIN players p ON p.user_id=u.id
-                           WHERE s.token_hash=? AND s.expires_at>?""", (token_hash, int(time.time()))).fetchone()
+                           WHERE s.token_hash=? AND s.expires_at>? AND u.is_blocked=0""", (token_hash, int(time.time()))).fetchone()
         return dict(row) if row else None
 
 class RegisterIn(BaseModel):
@@ -398,8 +427,8 @@ def register_account(p: RegisterIn, request: Request):
 @app.post("/api/auth/login")
 def login_account(p: LoginIn, request: Request):
     with db() as c:
-        user = c.execute("SELECT id,nickname,password_hash FROM users WHERE lower(nickname)=lower(?)", (p.nickname.strip(),)).fetchone()
-    if not user or not password_matches(p.password, user["password_hash"]):
+        user = c.execute("SELECT id,nickname,password_hash,is_blocked FROM users WHERE lower(nickname)=lower(?)", (p.nickname.strip(),)).fetchone()
+    if not user or user["is_blocked"] or not password_matches(p.password, user["password_hash"]):
         raise HTTPException(status_code=401, detail="Неверный никнейм или пароль")
     from fastapi.responses import JSONResponse
     response = JSONResponse({"ok": True, "nickname": user["nickname"]})
@@ -438,3 +467,83 @@ def update_my_profile(p: ProfilePatch, request: Request):
         c.execute("UPDATE players SET " + ",".join(f"{key}=?" for key in values) + " WHERE user_id=?",
                   [v.strip() if isinstance(v,str) else v for v in values.values()] + [user["id"]])
     return current_user(request)
+
+
+@app.get("/api/admin/users")
+def admin_users(request: Request):
+    check_admin(request)
+    with db() as c:
+        rows = c.execute("""SELECT u.id,u.nickname,u.is_blocked,u.created_at,
+                            p.id AS player_id,p.game,p.rank,p.wins,p.region,p.play_time,p.play_style,p.looking_for
+                            FROM users u LEFT JOIN players p ON p.user_id=u.id ORDER BY u.id DESC""").fetchall()
+        return [dict(row) for row in rows]
+
+@app.patch("/api/admin/users/{user_id}")
+def admin_update_user(user_id: int, p: AdminUserPatch, request: Request):
+    check_admin(request)
+    values = p.model_dump(exclude_unset=True)
+    if not values:
+        raise HTTPException(status_code=422, detail="Нет изменений")
+    with db() as c:
+        user = c.execute("SELECT id,nickname FROM users WHERE id=?", (user_id,)).fetchone()
+        if not user:
+            raise HTTPException(status_code=404, detail="Аккаунт не найден")
+        if "nickname" in values:
+            new_nick = values.pop("nickname").strip()
+            if c.execute("SELECT 1 FROM users WHERE lower(nickname)=lower(?) AND id<>?", (new_nick,user_id)).fetchone():
+                raise HTTPException(status_code=409, detail="Никнейм уже занят")
+            c.execute("UPDATE users SET nickname=? WHERE id=?", (new_nick,user_id))
+            c.execute("UPDATE players SET nickname=? WHERE user_id=?", (new_nick,user_id))
+        if "password" in values:
+            new_password = values.pop("password")
+            c.execute("UPDATE users SET password_hash=? WHERE id=?", (password_hash(new_password),user_id))
+            c.execute("DELETE FROM sessions WHERE user_id=?", (user_id,))
+        if "is_blocked" in values:
+            blocked = 1 if values.pop("is_blocked") else 0
+            c.execute("UPDATE users SET is_blocked=? WHERE id=?", (blocked,user_id))
+            if blocked:
+                c.execute("DELETE FROM sessions WHERE user_id=?", (user_id,))
+        return dict(c.execute("SELECT id,nickname,is_blocked,created_at FROM users WHERE id=?", (user_id,)).fetchone())
+
+@app.delete("/api/admin/users/{user_id}")
+def admin_delete_user(user_id: int, request: Request):
+    check_admin(request)
+    with db() as c:
+        user = c.execute("SELECT id FROM users WHERE id=?", (user_id,)).fetchone()
+        if not user:
+            raise HTTPException(status_code=404, detail="Аккаунт не найден")
+        c.execute("DELETE FROM sessions WHERE user_id=?", (user_id,))
+        c.execute("DELETE FROM players WHERE user_id=?", (user_id,))
+        c.execute("DELETE FROM users WHERE id=?", (user_id,))
+    return {"ok": True}
+
+@app.patch("/api/admin/teams/{team_id}")
+def admin_update_team(team_id: int, p: AdminTeamPatch, request: Request):
+    check_admin(request)
+    values = p.model_dump(exclude_unset=True)
+    if not values:
+        raise HTTPException(status_code=422, detail="Нет изменений")
+    with db() as c:
+        if not c.execute("SELECT id FROM teams WHERE id=?", (team_id,)).fetchone():
+            raise HTTPException(status_code=404, detail="Команда не найдена")
+        try:
+            c.execute("UPDATE teams SET "+",".join(f"{key}=?" for key in values)+" WHERE id=?", [v.strip() if isinstance(v,str) else v for v in values.values()]+[team_id])
+        except sqlite3.IntegrityError:
+            raise HTTPException(status_code=409, detail="Название команды уже занято")
+        return dict(c.execute("SELECT * FROM teams WHERE id=?", (team_id,)).fetchone())
+
+@app.patch("/api/admin/matches/{match_id}/full")
+def admin_update_match_full(match_id: int, p: AdminMatchPatch, request: Request):
+    check_admin(request)
+    values = p.model_dump(exclude_unset=True)
+    if not values:
+        raise HTTPException(status_code=422, detail="Нет изменений")
+    if values.get("status") is not None and values["status"] not in {"Scheduled","Live","Completed"}:
+        raise HTTPException(status_code=422, detail="Некорректный статус матча")
+    if values.get("team_a") and values.get("team_b") and values["team_a"].strip().casefold()==values["team_b"].strip().casefold():
+        raise HTTPException(status_code=422, detail="Команда не может играть сама с собой")
+    with db() as c:
+        if not c.execute("SELECT id FROM matches WHERE id=?", (match_id,)).fetchone():
+            raise HTTPException(status_code=404, detail="Матч не найден")
+        c.execute("UPDATE matches SET "+",".join(f"{key}=?" for key in values)+" WHERE id=?", [v.strip() if isinstance(v,str) else v for v in values.values()]+[match_id])
+        return dict(c.execute("SELECT * FROM matches WHERE id=?", (match_id,)).fetchone())

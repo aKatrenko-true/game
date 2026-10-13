@@ -1,4 +1,4 @@
-const CACHE_NAME = "gamehub-shell-v4";
+const CACHE_NAME = "gamehub-shell-v5";
 const SHELL = ["/", "/static/styles.css", "/static/app.js?v=navfix4", "/static/manifest.webmanifest", "/static/icon.svg"];
 self.addEventListener("install", event => {
   event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(SHELL)).then(() => self.skipWaiting()));
@@ -17,7 +17,10 @@ self.addEventListener("fetch", event => {
   if (url.pathname.startsWith("/static/")) {
     event.respondWith(caches.match(request).then(cached => {
       const fresh = fetch(request).then(response => {
-        if (response && response.ok) caches.open(CACHE_NAME).then(cache => cache.put(request, response.clone()));
+        if (response && response.ok) {
+          const copy = response.clone();
+          event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.put(request, copy)));
+        }
         return response;
       }).catch(() => cached);
       return cached || fresh;

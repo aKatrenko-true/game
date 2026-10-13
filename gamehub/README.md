@@ -1,29 +1,77 @@
-# GameHub — QA portfolio project
+# GameHub — проект для QA-портфолио
 
-GameHub is a learning project for testing a gaming community website. It includes a responsive UI, REST API, SQLite database, seeded demo players, teams and matches, and basic profile creation.
+GameHub — учебное веб-приложение с каталогом игроков, командами, матчами и REST API. Этот README — главная точка входа для знакомства с продуктом, локального запуска и материалов тестирования.
 
-## Run on Windows
-1. Open PowerShell in this folder.
-2. Create and activate a virtual environment:
-   `py -m venv .venv`
-   `.venv\\Scripts\\Activate.ps1`
-   If PowerShell blocks activation, skip activation and use `.venv\\Scripts\\python.exe -m pip install -r requirements.txt` and `.venv\\Scripts\\python.exe -m uvicorn app:app --reload`.
-3. Install dependencies: `py -m pip install -r requirements.txt`
-4. Start: `py -m uvicorn app:app --reload`
-5. Open http://127.0.0.1:8000 and API docs at http://127.0.0.1:8000/docs.
+## Где смотреть QA-проект
 
-## API
-- GET /api/health
-- GET /api/players?q=Aveli&game=CS2
-- POST /api/players
-- GET /api/teams
-- POST /api/teams
-- GET /api/matches?status=Live
-- POST /api/matches
-- PATCH /api/matches/{id}
+**[Открыть QA-проект GameHub](qa-project/README.md)**
 
-## QA ideas
-Test profile creation, nickname uniqueness, validation boundaries, search and game filters, team creation, match creation, match status changes, empty states, and API response codes.
+В QA-проекте находятся:
+- [Хронология действий](qa-project/ACTION_HISTORY.md) — что мы проверяли и исправляли по порядку.
+- [Стратегия тестирования](qa-project/TEST_STRATEGY.md).
+- [Тест-кейсы](qa-project/TEST_CASES.md).
+- [Баг-репорты](qa-project/BUG_REPORTS.md).
+- [Чек-лист регрессии](qa-project/REGRESSION_CHECKLIST.md).
+- [Матрица трассировки](qa-project/TRACEABILITY.md).
+- [Шаблон отчёта о тестировании](qa-project/TEST_RUN_TEMPLATE.md).
+- [Скриншоты и доказательства](qa-project/screenshots/README.md).
 
-## Limitations
-This is a local educational app, not a production service. There is no password-based authentication, authorization, email verification, or production database configuration. Do not use real personal information.
+Краткая версия тест-плана: [QA_TEST_PLAN.md](QA_TEST_PLAN.md).
+
+## Стенд
+
+- **Опубликованный стенд:** https://gamehub-055p.onrender.com
+- **Swagger/OpenAPI:** https://gamehub-055p.onrender.com/docs
+- **Репозиторий:** https://github.com/aKatrenko-true/game
+
+## Локальный запуск на Windows
+
+Открой PowerShell в папке `gamehub`:
+
+```powershell
+py -m venv .venv
+.venv\Scripts\python.exe -m pip install -r requirements.txt
+.venv\Scripts\python.exe -m uvicorn app:app --reload
+```
+
+Открой http://127.0.0.1:8000. Документация API доступна по адресу http://127.0.0.1:8000/docs.
+
+## Основные API-маршруты
+
+- `GET /api/health`
+- `GET /api/players`
+- `POST /api/players`
+- `GET /api/teams`
+- `POST /api/teams`
+- `GET /api/matches`
+- `POST /api/matches`
+- `PATCH /api/matches/{id}`
+
+Актуальный контракт необходимо сверять в OpenAPI/Swagger на проверяемой версии стенда.
+
+## Технологии и QA-области
+
+FastAPI, Python, JavaScript, HTML/CSS, PostgreSQL на опубликованном окружении и SQLite для локального режима. Проверки включают UI, REST API, валидацию, сохранение данных, регрессию, адаптивность и PWA.
+
+## Тестирование API
+
+Из папки `gamehub`:
+
+```powershell
+py -m pip install -r requirements.txt
+pytest -q
+```
+
+## Текущий статус тестирования
+
+- Пользователь подтвердил, что игроки отображаются и новые записи сохраняются.
+- Исправлен дефект отображения каталога, связанный с вызовом `.forEach()` у результата одиночного DOM-селектора.
+- Ранее наблюдавшаяся ошибка Service Worker требует отдельного повторного тестирования.
+- Полный прогон админки, LFG, адаптивности и безопасности не подтверждён. Непроверенные сценарии не считать пройденными.
+
+## Ограничения и безопасность
+
+- Использовать только демонстрационные данные.
+- Не публиковать пароли, токены, cookies или значения секретных переменных окружения.
+- Бесплатная PostgreSQL-база Render по ранее проверенной настройке требовала решения о продлении/переносе до 12 ноября 2026 г.
+- Учебный проект не следует считать production-ready без отдельной проверки аутентификации, авторизации, безопасности и резервного копирования.

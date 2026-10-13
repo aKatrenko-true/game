@@ -1,0 +1,9 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#080b12"><title>GameHub — Конструктор сайта</title><link rel="stylesheet" href="/static/styles.css"></head>
+<body class="admin-body"><main class="admin-main cms-main">
+<header class="admin-header"><a class="brand admin-brand" href="/"><span class="mark">G</span>game<span class="green">hub</span></a><div><span class="admin-label">КОНСТРУКТОР САЙТА</span><a class="btn" href="/admin">← Администрирование</a><button id="cms-logout" class="btn">Выйти</button></div></header>
+<section id="cms-login" class="panel admin-login"><p class="eyebrow">CONTENT MANAGEMENT</p><h1>Редактор сайта</h1><p class="sub">Войди с паролем администратора GameHub.</p><form id="cms-login-form"><label>Пароль администратора<input id="cms-password" type="password" autocomplete="current-password" required></label><p id="cms-login-error" class="error"></p><button class="btn primary wide">Войти в редактор</button></form></section>
+<section id="cms-app" hidden><div class="admin-welcome"><div><p class="eyebrow">SITE BUILDER</p><h1>Конструктор GameHub</h1><p class="sub">Редактируй разделы, изображения и оформление. Изменения сохраняются в базе данных.</p></div><a class="btn" href="/" target="_blank" rel="noopener">Открыть сайт ↗</a></div>
+<nav class="admin-tabs"><button class="btn primary" data-cms-tab="sections">Разделы и блоки</button><button class="btn" data-cms-tab="appearance">Оформление</button><button class="btn" data-cms-tab="media">Изображения</button></nav>
+<div id="cms-notice" role="status"></div><section id="cms-content" class="panel"></section>
+</section><footer>GAMEHUB CMS <span>Изменения доступны только после авторизации</span></footer></main><script src="/static/cms.js?v=1"></script></body></html>

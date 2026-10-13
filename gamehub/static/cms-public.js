@@ -4,6 +4,8 @@
   const settings=data.settings||{}, sections=data.sections||[];
   if(settings.site_title){document.title=settings.site_title+" — Игровое сообщество";document.querySelector('meta[name="apple-mobile-web-app-title"]')?.setAttribute("content",settings.site_title)}
   if(settings.meta_description)document.querySelector('meta[name="description"]')?.setAttribute("content",settings.meta_description);
+  const navLabels={players:settings.menu_players,teams:settings.menu_teams,matches:settings.menu_matches,lfg:settings.menu_lfg};
+  for(const [view,label] of Object.entries(navLabels)){if(!label)continue;document.querySelectorAll('[data-view="'+view+'"]').forEach(el=>{if(el.classList.contains("mobile-tab")){const icon=el.querySelector("span");el.textContent=label;if(icon)el.prepend(icon)}else el.textContent=label})}
   if(settings.primary_color && /^#[0-9a-fA-F]{6}$/.test(settings.primary_color))document.documentElement.style.setProperty("--green",settings.primary_color);
   if(settings.background_color && /^#[0-9a-fA-F]{6}$/.test(settings.background_color))document.documentElement.style.setProperty("--bg",settings.background_color);
   const logo=settings.logo_text;if(logo){document.querySelectorAll(".brand").forEach(el=>{if(el.closest(".admin-main"))return;el.textContent="";const mark=document.createElement("span");mark.className="mark";mark.textContent=logo.slice(0,1).toUpperCase();el.append(mark,document.createTextNode(logo))})}

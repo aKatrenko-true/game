@@ -204,11 +204,11 @@ def test_postgres_cms_section_create_and_public_read(monkeypatch):
 
 
 
-def test_postgres_cms_settings_and_hidden_media_persist():
+def test_postgres_cms_settings_and_hidden_media_persist(monkeypatch):
     from fastapi.testclient import TestClient
 
     monkeypatch_password = "postgres-cms-persist-test"
-    os.environ["ADMIN_PASSWORD"] = monkeypatch_password
+    monkeypatch.setenv("ADMIN_PASSWORD", monkeypatch_password)
     slug = "pg-cms-hidden-" + uuid.uuid4().hex[:10]
     headers = {"X-Admin-Password": monkeypatch_password}
     with TestClient(gamehub.app) as client:

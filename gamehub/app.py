@@ -20,10 +20,20 @@ def db():
 def init_db():
     with db() as c:
         c.executescript("""
-        CREATE TABLE IF NOT EXISTS players(id INTEGER PRIMARY KEY, nickname TEXT UNIQUE NOT NULL, game TEXT NOT NULL, rank TEXT NOT NULL DEFAULT 'Unranked', wins INTEGER NOT NULL DEFAULT 0 CHECK(wins>=0));
+        CREATE TABLE IF NOT EXISTS players(id INTEGER PRIMARY KEY, nickname TEXT UNIQUE NOT NULL, game TEXT NOT NULL, rank TEXT NOT NULL DEFAULT 'Unranked', wins INTEGER NOT NULL DEFAULT 0 CHECK(wins>=0), region TEXT NOT NULL DEFAULT 'EU', play_time TEXT NOT NULL DEFAULT 'Вечером', play_style TEXT NOT NULL DEFAULT 'Любой', looking_for TEXT NOT NULL DEFAULT 'Напарника');
         CREATE TABLE IF NOT EXISTS teams(id INTEGER PRIMARY KEY, name TEXT UNIQUE NOT NULL, game TEXT NOT NULL, description TEXT NOT NULL DEFAULT '');
         CREATE TABLE IF NOT EXISTS matches(id INTEGER PRIMARY KEY, game TEXT NOT NULL, team_a TEXT NOT NULL, team_b TEXT NOT NULL, score_a INTEGER NOT NULL DEFAULT 0 CHECK(score_a>=0), score_b INTEGER NOT NULL DEFAULT 0 CHECK(score_b>=0), status TEXT NOT NULL DEFAULT 'Scheduled' CHECK(status IN ('Scheduled','Live','Completed')), scheduled_at TEXT NOT NULL);
         """)
+        # Safe migrations for databases created by older GameHub versions.
+        player_columns = {row[1] for row in c.execute("PRAGMA table_info(players)").fetchall()}
+        for column, definition in [
+            ("region", "TEXT NOT NULL DEFAULT 'EU'"),
+            ("play_time", "TEXT NOT NULL DEFAULT 'Вечером'"),
+            ("play_style", "TEXT NOT NULL DEFAULT 'Любой'"),
+            ("looking_for", "TEXT NOT NULL DEFAULT 'Напарника'"),
+        ]:
+            if column not in player_columns:
+                c.execute(f"ALTER TABLE players ADD COLUMN {column} {definition}")
         names = [
           ("Aveli","CS2","Gold Nova",42),("v1exa","Valorant","Diamond",67),("Ch1ksa","CS2","Master Guardian",31),("pixelfox","Apex Legends","Platinum",54),
           ("Nexa","CS2","Legendary Eagle",29),("LunaByte","Valorant","Ascendant",51),("RiftWalker","Apex Legends","Diamond",36),("NovaRush","CS2","Gold Nova",18),
@@ -84,6 +94,10 @@ class PlayerIn(BaseModel):
     nickname: str = Field(min_length=3,max_length=20,pattern=r"^[A-Za-z0-9_]+$")
     game: str = Field(min_length=2,max_length=40)
     rank: str = Field(default="Unranked",max_length=30)
+    region: str = Field(default="EU", max_length=20)
+    play_time: str = Field(default="Вечером", max_length=30)
+    play_style: str = Field(default="Любой", max_length=30)
+    looking_for: str = Field(default="Напарника", max_length=30)
 
 class TeamIn(BaseModel):
     name: str = Field(min_length=3,max_length=40)
@@ -116,7 +130,7 @@ def players(q: Optional[str]=None,game: Optional[str]=None):
 def create_player(p: PlayerIn):
     with db() as c:
         try:
-            cur=c.execute("INSERT INTO players(nickname,game,rank) VALUES(?,?,?)",(p.nickname,p.game.strip(),p.rank.strip()))
+            cur=c.execute("INSERT INTO players(nickname,game,rank,region,play_time,play_style,looking_for) VALUES(?,?,?,?,?,?,?)",(p.nickname,p.game.strip(),p.rank.strip(),p.region,p.play_time,p.play_style,p.looking_for))
             return dict(c.execute("SELECT * FROM players WHERE id=?",(cur.lastrowid,)).fetchone())
         except sqlite3.IntegrityError:
             raise HTTPException(status_code=409,detail="Nickname already exists")

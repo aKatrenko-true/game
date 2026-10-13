@@ -542,7 +542,7 @@ def init_cms_tables():
         """)
         if c.execute("SELECT COUNT(*) FROM cms_sections").fetchone()[0] == 0:
             c.executemany("INSERT INTO cms_sections(title,slug,kind,body,visible,sort_order) VALUES(?,?,?,?,?,?)", [
-              ("Главный экран","hero","hero","Находи напарников, собирай команды и следи за игровыми матчами в GameHub.",1,10),
+              ("Найди свою команду. Играй на своём уровне.","hero","hero","Игроки, команды и матчи — в одном месте.",1,10),
               ("Игры","games","cards","Выбирай игру и находи своё сообщество.",1,20),
               ("Игроки","players","players","Игровое сообщество GameHub",1,30),
               ("Команды","teams","teams","Собирай состав и играй вместе.",1,40),
@@ -622,7 +622,7 @@ def cms_set_setting(key: str, p: CMSSettingIn, request: Request):
 @app.get("/api/cms/content")
 def cms_public_content():
     with db() as c:
-        sections=[dict(r) for r in c.execute("SELECT id,title,slug,kind,body,image_url,visible,sort_order FROM cms_sections WHERE visible=1 ORDER BY sort_order,id").fetchall()]
+        sections=[dict(r) for r in c.execute("SELECT id,title,slug,kind,body,image_url,visible,sort_order FROM cms_sections ORDER BY sort_order,id").fetchall()]
         settings={r["key"]:r["value"] for r in c.execute("SELECT key,value FROM cms_settings").fetchall()}
     return {"sections":sections,"settings":settings}
 

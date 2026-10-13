@@ -87,7 +87,7 @@ class PostgresConnection:
             except Exception:
                 table = None
         has_returning = " RETURNING " in sql.upper()
-        needs_id = table in {"players","teams","matches","users","lfg_posts"} and not has_returning and "ON CONFLICT DO NOTHING" not in sql.upper()
+        needs_id = table in {"players","teams","matches","users","lfg_posts","cms_sections"} and not has_returning and "ON CONFLICT DO NOTHING" not in sql.upper()
         if needs_id:
             sql += " RETURNING id"
         cur = self._con.execute(sql, args)

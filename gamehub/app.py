@@ -20,7 +20,7 @@ def db():
 def init_db():
     with db() as c:
         c.executescript("""
-        CREATE TABLE IF NOT EXISTS players(id INTEGER PRIMARY KEY, nickname TEXT UNIQUE NOT NULL, game TEXT NOT NULL, rank TEXT NOT NULL DEFAULT 'Unranked', wins INTEGER NOT NULL DEFAULT 0 CHECK(wins>=0), region TEXT NOT NULL DEFAULT 'EU', play_time TEXT NOT NULL DEFAULT 'Вечером', play_style TEXT NOT NULL DEFAULT 'Любой', looking_for TEXT NOT NULL DEFAULT 'Напарника');
+        CREATE TABLE IF NOT EXISTS players(id INTEGER PRIMARY KEY, nickname TEXT UNIQUE NOT NULL, game TEXT NOT NULL, rank TEXT NOT NULL DEFAULT 'Unranked', wins INTEGER NOT NULL DEFAULT 0 CHECK(wins>=0), region TEXT NOT NULL DEFAULT 'EU', play_time TEXT NOT NULL DEFAULT 'Вечером', play_style TEXT NOT NULL DEFAULT 'Любой', looking_for TEXT NOT NULL DEFAULT 'Напарника', user_id INTEGER UNIQUE);
         CREATE TABLE IF NOT EXISTS teams(id INTEGER PRIMARY KEY, name TEXT UNIQUE NOT NULL, game TEXT NOT NULL, description TEXT NOT NULL DEFAULT '');
         CREATE TABLE IF NOT EXISTS matches(id INTEGER PRIMARY KEY, game TEXT NOT NULL, team_a TEXT NOT NULL, team_b TEXT NOT NULL, score_a INTEGER NOT NULL DEFAULT 0 CHECK(score_a>=0), score_b INTEGER NOT NULL DEFAULT 0 CHECK(score_b>=0), status TEXT NOT NULL DEFAULT 'Scheduled' CHECK(status IN ('Scheduled','Live','Completed')), scheduled_at TEXT NOT NULL);
         """)
@@ -31,6 +31,7 @@ def init_db():
             ("play_time", "TEXT NOT NULL DEFAULT 'Вечером'"),
             ("play_style", "TEXT NOT NULL DEFAULT 'Любой'"),
             ("looking_for", "TEXT NOT NULL DEFAULT 'Напарника'"),
+            ("user_id", "INTEGER"),
         ]:
             if column not in player_columns:
                 c.execute(f"ALTER TABLE players ADD COLUMN {column} {definition}")

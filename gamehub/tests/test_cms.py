@@ -70,11 +70,23 @@ def test_cms_rejects_invalid_slug_and_duplicate_slug(client):
     assert duplicate.status_code == 409
 
 
-def test_cms_settings_persist_and_invalid_key_rejected(client):
+def test_cms_settings_persist_and_reject_unknown_keys_and_invalid_colors(client):
     saved = client.put("/api/admin/cms/settings/site_title", headers=admin_headers(),
                        json={"value": "My GameHub"})
     assert saved.status_code == 200
     assert client.get("/api/cms/content").json()["settings"]["site_title"] == "My GameHub"
-    invalid = client.put("/api/admin/cms/settings/bad-key", headers=admin_headers(),
-                         json={"value": "ignored"})
-    assert invalid.status_code == 422
+
+    invalid_key = client.put("/api/admin/cms/settings/private_note", headers=admin_headers(),
+                             json={"value": "should never be public"})
+    assert invalid_key.status_code == 422
+
+    invalid_color = client.put("/api/admin/cms/settings/primary_color", headers=admin_headers(),
+                               json={"value": "red; background:url(https://example.com)"})
+    assert invalid_color.status_code == 422
+
+    # Even if a legacy/foreign setting exists in the table, the public API must not expose it.
+    with gamehub.db() as connection:
+        connection.execute("INSERT INTO cms_settings(key,value) VALUES(?,?)",
+                            ("private_note", "must stay private"))
+    public_settings = client.get("/api/cms/content").json()["settings"]
+    assert "private_note" not in public_settings

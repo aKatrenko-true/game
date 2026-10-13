@@ -1,5 +1,5 @@
-const CACHE_NAME = "gamehub-shell-v3";
-const SHELL = ["/", "/static/styles.css", "/static/app.js", "/static/manifest.webmanifest", "/static/icon.svg"];
+const CACHE_NAME = "gamehub-shell-v4";
+const SHELL = ["/", "/static/styles.css", "/static/app.js?v=navfix4", "/static/manifest.webmanifest", "/static/icon.svg"];
 self.addEventListener("install", event => {
   event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(SHELL)).then(() => self.skipWaiting()));
 });

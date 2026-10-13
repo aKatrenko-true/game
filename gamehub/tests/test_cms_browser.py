@@ -150,11 +150,11 @@ def test_cms_admin_login_and_appearance_editor_work_in_browser(browser_app):
         assert page.locator("#cms-app").is_hidden()
 
         page.locator("#cms-password").fill("wrong-password")
-        page.locator("#cms-login-form button[type=submit]").click()
+        page.locator("#cms-login-form button").click()
         assert page.locator("#cms-login-error").inner_text() != ""
 
         page.locator("#cms-password").fill("browser-cms-test-password")
-        page.locator("#cms-login-form button[type=submit]").click()
+        page.locator("#cms-login-form button").click()
         assert page.locator("#cms-app").is_visible()
 
         page.locator('[data-cms-tab="appearance"]').click()
@@ -184,7 +184,7 @@ def test_cms_media_upload_saves_image_to_selected_section(browser_app, tmp_path)
         page = browser.new_page()
         page.goto(browser_app + "/admin/cms", wait_until="networkidle")
         page.locator("#cms-password").fill(password)
-        page.locator("#cms-login-form button[type=submit]").click()
+        page.locator("#cms-login-form button").click()
         assert page.locator("#cms-app").is_visible()
 
         page.locator('[data-cms-tab="media"]').click()

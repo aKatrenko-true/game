@@ -18,20 +18,6 @@ def test_postgres_schema_and_seed_policy():
     assert {"players", "teams", "matches", "users", "sessions", "lfg_posts"} <= tables
 
 
-def test_postgres_player_create_and_read():
-    nickname = "PG_" + uuid.uuid4().hex[:12]
-    with gamehub.db() as con:
-        cur = con.execute(
-            "INSERT INTO players(nickname,game,rank,wins) VALUES(?,?,?,?)",
-            (nickname, "CS2", "Unranked", 0),
-        )
-        player_id = cur.lastrowid
-        assert player_id is not None
-        row = con.execute("SELECT * FROM players WHERE id=?", (player_id,)).fetchone()
-        assert row["nickname"] == nickname
-        assert row[0] == player_id
-
-
 def test_postgres_init_is_idempotent_and_seeds_demo_data_when_enabled(monkeypatch):
     monkeypatch.setenv("SEED_DEMO_DATA", "true")
     gamehub.init_db()
@@ -55,6 +41,22 @@ def test_postgres_init_is_idempotent_and_seeds_demo_data_when_enabled(monkeypatc
         assert con.execute(
             "SELECT COUNT(*) FROM players WHERE nickname=?", (nickname,)
         ).fetchone()[0] == 1
+
+
+
+def test_postgres_player_create_and_read():
+    nickname = "PG_" + uuid.uuid4().hex[:12]
+    with gamehub.db() as con:
+        cur = con.execute(
+            "INSERT INTO players(nickname,game,rank,wins) VALUES(?,?,?,?)",
+            (nickname, "CS2", "Unranked", 0),
+        )
+        player_id = cur.lastrowid
+        assert player_id is not None
+        row = con.execute("SELECT * FROM players WHERE id=?", (player_id,)).fetchone()
+        assert row["nickname"] == nickname
+        assert row[0] == player_id
+
 
 
 def test_postgres_api_register_and_lfg_round_trip():

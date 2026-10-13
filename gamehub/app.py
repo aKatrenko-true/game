@@ -1,6 +1,6 @@
 from contextlib import asynccontextmanager
 from pathlib import Path
-import os, sqlite3
+import os, sqlite3, hashlib, hmac, time
 from typing import Optional
 import secrets
 from fastapi import FastAPI, HTTPException, Request
@@ -34,6 +34,19 @@ def init_db():
         ]:
             if column not in player_columns:
                 c.execute(f"ALTER TABLE players ADD COLUMN {column} {definition}")
+        c.executescript("""
+        CREATE TABLE IF NOT EXISTS users(
+            id INTEGER PRIMARY KEY,
+            nickname TEXT NOT NULL UNIQUE,
+            password_hash TEXT NOT NULL,
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE TABLE IF NOT EXISTS sessions(
+            token_hash TEXT PRIMARY KEY,
+            user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            expires_at INTEGER NOT NULL
+        );
+        """)
         names = [
           ("Aveli","CS2","Gold Nova",42),("v1exa","Valorant","Diamond",67),("Ch1ksa","CS2","Master Guardian",31),("pixelfox","Apex Legends","Platinum",54),
           ("Nexa","CS2","Legendary Eagle",29),("LunaByte","Valorant","Ascendant",51),("RiftWalker","Apex Legends","Diamond",36),("NovaRush","CS2","Gold Nova",18),
@@ -291,3 +304,136 @@ def admin_delete_match(match_id: int, request: Request):
         if cur.rowcount == 0:
             raise HTTPException(status_code=404, detail="Матч не найден")
     return {"ok": True}
+
+# Player accounts: passwords are hashed and sessions are opaque, expiring tokens.
+SESSION_DAYS = 30
+
+def password_hash(password: str) -> str:
+    salt = secrets.token_bytes(16)
+    digest = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, 310000)
+    return salt.hex() + ":" + digest.hex()
+
+def password_matches(password: str, stored: str) -> bool:
+    try:
+        salt_hex, digest_hex = stored.split(":", 1)
+        actual = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), bytes.fromhex(salt_hex), 310000).hex()
+        return hmac.compare_digest(actual, digest_hex)
+    except (ValueError, TypeError):
+        return False
+
+def issue_session(user_id: int, request: Request, response):
+    token = secrets.token_urlsafe(32)
+    with db() as c:
+        c.execute("DELETE FROM sessions WHERE expires_at < ?", (int(time.time()),))
+        c.execute("INSERT INTO sessions(token_hash,user_id,expires_at) VALUES(?,?,?)",
+                  (hashlib.sha256(token.encode()).hexdigest(), user_id, int(time.time()) + SESSION_DAYS * 86400))
+    response.set_cookie("gh_session", token, httponly=True, secure=request.url.scheme == "https",
+                        samesite="lax", max_age=SESSION_DAYS * 86400, path="/")
+
+def current_user(request: Request):
+    token = request.cookies.get("gh_session", "")
+    if not token:
+        return None
+    token_hash = hashlib.sha256(token.encode()).hexdigest()
+    with db() as c:
+        row = c.execute("""SELECT u.id,u.nickname,u.created_at,p.id AS player_id,p.game,p.rank,p.wins,
+                           p.region,p.play_time,p.play_style,p.looking_for
+                           FROM sessions s JOIN users u ON u.id=s.user_id
+                           LEFT JOIN players p ON p.user_id=u.id
+                           WHERE s.token_hash=? AND s.expires_at>?""", (token_hash, int(time.time()))).fetchone()
+        return dict(row) if row else None
+
+class RegisterIn(BaseModel):
+    nickname: str = Field(min_length=3, max_length=20, pattern=r"^[A-Za-z0-9_]+$")
+    password: str = Field(min_length=10, max_length=128)
+    game: str = Field(default="CS2", min_length=2, max_length=40)
+    rank: str = Field(default="Unranked", max_length=30)
+    region: str = Field(default="EU", max_length=20)
+    play_time: str = Field(default="Вечером", max_length=30)
+    play_style: str = Field(default="Любой", max_length=30)
+    looking_for: str = Field(default="Напарника", max_length=30)
+
+class LoginIn(BaseModel):
+    nickname: str = Field(min_length=3, max_length=20)
+    password: str = Field(min_length=1, max_length=128)
+
+class ProfilePatch(BaseModel):
+    game: Optional[str] = Field(default=None, min_length=2, max_length=40)
+    rank: Optional[str] = Field(default=None, max_length=30)
+    region: Optional[str] = Field(default=None, max_length=20)
+    play_time: Optional[str] = Field(default=None, max_length=30)
+    play_style: Optional[str] = Field(default=None, max_length=30)
+    looking_for: Optional[str] = Field(default=None, max_length=30)
+
+@app.get("/login", include_in_schema=False)
+def login_page():
+    return FileResponse(BASE / "static" / "account.html")
+
+@app.get("/account", include_in_schema=False)
+def account_page():
+    return FileResponse(BASE / "static" / "account.html")
+
+@app.post("/api/auth/register", status_code=201)
+def register_account(p: RegisterIn, request: Request):
+    nickname = p.nickname.strip()
+    with db() as c:
+        if c.execute("SELECT 1 FROM users WHERE lower(nickname)=lower(?)", (nickname,)).fetchone():
+            raise HTTPException(status_code=409, detail="Этот никнейм уже зарегистрирован")
+        if c.execute("SELECT 1 FROM players WHERE lower(nickname)=lower(?)", (nickname,)).fetchone():
+            raise HTTPException(status_code=409, detail="Никнейм уже занят в GameHub")
+        try:
+            cur = c.execute("INSERT INTO users(nickname,password_hash) VALUES(?,?)", (nickname, password_hash(p.password)))
+            user_id = cur.lastrowid
+            c.execute("""INSERT INTO players(nickname,game,rank,region,play_time,play_style,looking_for,user_id)
+                         VALUES(?,?,?,?,?,?,?,?)""",
+                      (nickname,p.game.strip(),p.rank.strip(),p.region,p.play_time,p.play_style,p.looking_for,user_id))
+        except sqlite3.IntegrityError:
+            raise HTTPException(status_code=409, detail="Не удалось создать аккаунт: проверь никнейм")
+    from fastapi.responses import JSONResponse
+    response = JSONResponse({"ok": True, "nickname": nickname})
+    issue_session(user_id, request, response)
+    return response
+
+@app.post("/api/auth/login")
+def login_account(p: LoginIn, request: Request):
+    with db() as c:
+        user = c.execute("SELECT id,nickname,password_hash FROM users WHERE lower(nickname)=lower(?)", (p.nickname.strip(),)).fetchone()
+    if not user or not password_matches(p.password, user["password_hash"]):
+        raise HTTPException(status_code=401, detail="Неверный никнейм или пароль")
+    from fastapi.responses import JSONResponse
+    response = JSONResponse({"ok": True, "nickname": user["nickname"]})
+    issue_session(user["id"], request, response)
+    return response
+
+@app.post("/api/auth/logout")
+def logout_account(request: Request):
+    token = request.cookies.get("gh_session", "")
+    if token:
+        with db() as c:
+            c.execute("DELETE FROM sessions WHERE token_hash=?", (hashlib.sha256(token.encode()).hexdigest(),))
+    from fastapi.responses import JSONResponse
+    response = JSONResponse({"ok": True})
+    response.delete_cookie("gh_session", path="/")
+    return response
+
+@app.get("/api/auth/me")
+def auth_me(request: Request):
+    user = current_user(request)
+    if not user:
+        raise HTTPException(status_code=401, detail="Войди в аккаунт")
+    return user
+
+@app.patch("/api/auth/profile")
+def update_my_profile(p: ProfilePatch, request: Request):
+    user = current_user(request)
+    if not user:
+        raise HTTPException(status_code=401, detail="Войди в аккаунт")
+    values = p.model_dump(exclude_unset=True)
+    if not values:
+        raise HTTPException(status_code=422, detail="Нет изменений")
+    if not user.get("player_id"):
+        raise HTTPException(status_code=404, detail="Игровой профиль не найден")
+    with db() as c:
+        c.execute("UPDATE players SET " + ",".join(f"{key}=?" for key in values) + " WHERE user_id=?",
+                  [v.strip() if isinstance(v,str) else v for v in values.values()] + [user["id"]])
+    return current_user(request)

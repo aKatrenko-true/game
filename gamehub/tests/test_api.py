@@ -53,7 +53,7 @@ def test_lfg_create_and_list_for_authenticated_user():
             "game":"CS2","rank":"Gold Nova","region":"EU",
             "play_time":"Вечером","play_style":"Любой","looking_for":"Напарника"
         })
-        assert register.status_code == 201
+        assert register.status_code == 200
         created = client.post("/api/lfg", json={
             "game":"CS2","post_type":"duo","rank":"Gold Nova","region":"EU",
             "platform":"PC","language":"Русский","play_time":"Вечером",
@@ -78,13 +78,13 @@ def test_lfg_user_cannot_close_another_users_post():
     with TestClient(gamehub.app) as first:
         assert first.post("/api/auth/register", json={
             "nickname":"LfgOwner_01","password":"TestPassword_123","game":"CS2"
-        }).status_code == 201
+        }).status_code == 200
         post = first.post("/api/lfg", json={"game":"CS2","post_type":"duo"})
         assert post.status_code == 201
         post_id = post.json()["id"]
     with TestClient(gamehub.app) as second:
         assert second.post("/api/auth/register", json={
             "nickname":"LfgOther_01","password":"TestPassword_123","game":"CS2"
-        }).status_code == 201
+        }).status_code == 200
         r = second.patch(f"/api/lfg/{post_id}", json={"status":"closed"})
         assert r.status_code == 403

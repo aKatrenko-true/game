@@ -168,3 +168,41 @@ def test_cms_admin_login_and_appearance_editor_work_in_browser(browser_app):
         assert public["settings"]["primary_color"] == "#123ABC"
         assert not errors, "CMS browser JavaScript errors: " + "; ".join(errors)
         browser.close()
+
+
+def test_cms_media_upload_saves_image_to_selected_section(browser_app, tmp_path):
+    from base64 import b64encode
+
+    password = "browser-cms-test-password"
+    # A tiny valid PNG fixture (1x1 pixel).
+    png_bytes = bytes.fromhex(
+        "89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c489"
+        "0000000b49444154789c636000020000050001a5f645400000000049454e44ae426082"
+    )
+    with sync_playwright() as p:
+        browser = p.chromium.launch()
+        page = browser.new_page()
+        page.goto(browser_app + "/admin/cms", wait_until="networkidle")
+        page.locator("#cms-password").fill(password)
+        page.locator("#cms-login-form button[type=submit]").click()
+        assert page.locator("#cms-app").is_visible()
+
+        page.locator('[data-cms-tab="media"]').click()
+        page.locator("#media-file").set_input_files({
+            "name": "pixel.png",
+            "mimeType": "image/png",
+            "buffer": png_bytes,
+        })
+        page.wait_for_function("document.querySelector('#media-save') && !document.querySelector('#media-save').disabled")
+        page.locator("#media-save").click()
+        page.wait_for_function("document.querySelector('#cms-notice')?.textContent.includes('сохранены')")
+
+        section_id = int(page.locator("#media-section").input_value())
+        sections = page.request.get(
+            browser_app + "/api/admin/cms/sections",
+            headers={"X-Admin-Password": password},
+        ).json()
+        selected = next(s for s in sections if s["id"] == section_id)
+        assert selected["image_url"].startswith("data:image/png;base64,")
+        assert b64encode(png_bytes).decode() in selected["image_url"]
+        browser.close()

@@ -70,7 +70,7 @@ jobs:
           node --check static/cms-public.js
           node --check static/lfg.js
       - name: Run API and CMS regression tests
-        run: python -m pytest -q --ignore=tests/test_postgres.py
+        run: python -m pytest -q --ignore=tests/test_postgres.py --ignore=tests/test_cms_browser.py
       - name: Install Chromium for browser tests
         run: python -m playwright install --with-deps chromium
       - name: Run real-browser CMS smoke tests

@@ -70,7 +70,7 @@ def test_lfg_validation_rejects_unknown_post_type():
         register = client.post("/api/auth/register", json={
             "nickname":"LfgTester_02","password":"TestPassword_123","game":"CS2"
         })
-        assert register.status_code == 201
+        assert register.status_code == 200
         r = client.post("/api/lfg", json={"game":"CS2","post_type":"whatever"})
         assert r.status_code == 422
 

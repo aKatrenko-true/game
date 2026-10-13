@@ -76,6 +76,10 @@ app.mount("/static",StaticFiles(directory=BASE/"static"),name="static")
 @app.get("/",include_in_schema=False)
 def home(): return FileResponse(BASE/"static"/"index.html")
 
+@app.get("/sw.js", include_in_schema=False)
+def service_worker():
+    return FileResponse(BASE / "static" / "sw.js", media_type="application/javascript", headers={"Service-Worker-Allowed": "/"})
+
 class PlayerIn(BaseModel):
     nickname: str = Field(min_length=3,max_length=20,pattern=r"^[A-Za-z0-9_]+$")
     game: str = Field(min_length=2,max_length=40)

@@ -20,7 +20,7 @@ input,select,textarea{font-size:16px}
  header>span{font-size:13px;white-space:nowrap}
  .header-actions{display:flex;gap:7px;align-items:center}
  .header-actions .btn{padding:9px 10px;font-size:12px;min-height:40px}
- .header-actions a{display:none}
+ .header-actions a[href="/admin"]{display:none}.header-actions a[href="/account"]{display:inline-flex}
  .hero{margin:14px 0 14px;padding:24px 20px;min-height:310px;position:relative;border-radius:17px}
  .hero>div:first-child{position:relative;z-index:1}
  .hero .eyebrow{font-size:10px}

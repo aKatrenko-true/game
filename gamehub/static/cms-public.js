@@ -36,8 +36,15 @@
   const playerPanel=document.querySelector("#featured")?.closest(".panel"),matchPanel=document.querySelector("#featured-matches")?.closest(".panel");
   if(playerSection&&playerPanel){playerPanel.hidden=!playerSection.visible;const h=playerPanel.querySelector("h2");if(h&&playerSection.title)h.textContent=playerSection.title}
   if(matchSection&&matchPanel){matchPanel.hidden=!matchSection.visible;const h=matchPanel.querySelector("h2");if(h&&matchSection.title)h.textContent=matchSection.title}
-  const directory=document.querySelector(".directory"),teamSection=bySlug.teams;
-  if(teamSection&&directory&&teamSection.visible){directory.dataset.cmsTeamBlock="true"}
+  // Treat visibility as a site-wide rule, not only a homepage-card toggle.
+  const hiddenViews=new Set(["players","teams","matches"].filter(view=>bySlug[view]&&!bySlug[view].visible));
+  window.__cmsHiddenViews=hiddenViews;
+  for(const view of ["players","teams","matches"]){
+   const hidden=hiddenViews.has(view);
+   document.querySelectorAll('[data-view="'+view+'"],[data-go="'+view+'"]').forEach(el=>{el.hidden=hidden;el.setAttribute("aria-hidden",String(hidden));});
+  }
+  // The directory container is shared by all SPA routes; never hide it for a single view.
+  if(hiddenViews.size&&typeof window.render==="function")window.render("overview");
   // Sort the primary homepage areas using CMS order. Players/matches share one two-column area.
   const main=document.querySelector("main");
   if(main){

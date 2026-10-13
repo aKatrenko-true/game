@@ -1,0 +1,8 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+gamehub.db
+test_gamehub.db
+.pytest_cache/
+.env

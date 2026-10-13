@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b0e14"><meta name="description" content="Личный кабинет GameHub — профиль игрока и поиск напарников">
+<link rel="manifest" href="/static/manifest.webmanifest"><link rel="icon" href="/static/icon.svg" type="image/svg+xml">
+<title>Личный кабинет — GameHub</title><link rel="stylesheet" href="/static/styles.css">
+<style>
+.account-wrap{max-width:1000px;margin:34px auto 70px}.account-top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-bottom:20px;border-bottom:1px solid var(--line)}.account-top .brand{padding:0}.account-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:22px}.account-card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:24px}.account-card h1,.account-card h2{font-family:'Space Grotesk';margin:0 0 10px}.account-card p{color:var(--muted);font-size:14px}.account-card label{display:block;font-size:13px;color:#c5cede;margin:14px 0}.account-card input,.account-card select{width:100%}.account-card .btn{margin-top:8px}.account-tabs{display:flex;gap:8px;margin:18px 0}.account-tabs button{flex:1;background:var(--panel2);color:var(--text)}.account-tabs button.active{background:var(--green);color:#151b0f}.account-message{min-height:24px;color:#ffadad;font-size:13px}.account-message.ok{color:var(--green)}.account-profile{display:none}.account-profile.show{display:block}.account-auth.hide{display:none}.account-details{display:grid;grid-template-columns:1fr 1fr;gap:0 14px}.account-details .full{grid-column:1/-1}.account-id{display:flex;align-items:center;gap:14px;margin:18px 0}.account-avatar{width:60px;height:60px;display:grid;place-items:center;background:#b4f46b;color:#12170d;border-radius:16px;font:700 26px 'Space Grotesk'}.account-meta{color:var(--muted);font-size:13px}.account-links{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}@media(max-width:700px){.account-wrap{margin:18px 12px 40px}.account-grid{grid-template-columns:1fr}.account-card{padding:19px}.account-details{grid-template-columns:1fr}.account-details .full{grid-column:auto}.account-top .brand{font-size:20px}.account-top .btn{padding:9px 11px}}
+</style>
+</head>
+<body>
+<main class="account-wrap">
+<header class="account-top"><a class="brand" href="/"><span class="mark">G</span>game<span class="green">hub</span></a><a class="btn" href="/">← На главную</a></header>
+<section id="auth" class="account-auth">
+<div class="account-grid">
+<article class="account-card">
+<p class="eyebrow">PLAYER ACCOUNT</p><h1>Твой GameHub</h1><p>Создай аккаунт, настрой игровой профиль и находи людей для совместной игры.</p>
+<div class="account-tabs"><button id="tab-login" class="btn active" type="button">Войти</button><button id="tab-register" class="btn" type="button">Регистрация</button></div>
+<form id="login-form">
+<label>Никнейм<input name="nickname" required minlength="3" maxlength="20" autocomplete="username" placeholder="Твой игровой ник"></label>
+<label>Пароль<input name="password" type="password" required autocomplete="current-password" placeholder="Пароль"></label>
+<button class="btn primary wide" type="submit">Войти в аккаунт</button>
+</form>
+<form id="register-form" hidden>
+<label>Никнейм<input name="nickname" required minlength="3" maxlength="20" pattern="[A-Za-z0-9_]+" autocomplete="username" placeholder="Только латиница, цифры и _"></label>
+<label>Пароль (минимум 10 символов)<input name="password" type="password" required minlength="10" maxlength="128" autocomplete="new-password" placeholder="Создай надёжный пароль"></label>
+<div class="account-details">
+<label>Основная игра<select name="game"><option>CS2</option><option>WarDogs</option><option>Valorant</option><option>Apex Legends</option><option>Dota 2</option></select></label>
+<label>Ранг<input name="rank" maxlength="30" value="Unranked"></label>
+<label>Регион<select name="region"><option value="EU">Европа</option><option value="CIS">СНГ</option><option value="NA">Северная Америка</option><option value="Other">Другой</option></select></label>
+<label>Когда играешь<select name="play_time"><option>Вечером</option><option>Днём</option><option>Ночью</option><option>По выходным</option><option>По-разному</option></select></label>
+<label>Стиль игры<select name="play_style"><option>Любой</option><option>Казуальный</option><option>Рейтинговый</option><option>Соревновательный</option></select></label>
+<label>Кого ищешь<select name="looking_for"><option>Напарника</option><option>Команду</option><option>Пати</option></select></label>
+</div>
+<button class="btn primary wide" type="submit">Создать аккаунт</button>
+</form>
+<div id="auth-message" class="account-message" role="status"></div>
+</article>
+<article class="account-card"><p class="eyebrow">YOUR SPACE</p><h2>Что будет в кабинете?</h2>
+<div class="playerrow"><div class="playeravatar">◎</div><div class="playerinfo"><b>Игровой профиль</b><small>Ранг, регион, время игры и предпочтения</small></div></div>
+<div class="playerrow"><div class="playeravatar">⬡</div><div class="playerinfo"><b>Команды</b><small>Следующий этап — составы и заявки</small></div></div>
+<div class="playerrow"><div class="playeravatar">⌕</div><div class="playerinfo"><b>Поиск напарников</b><small>Находи игроков с похожим стилем</small></div></div>
+<p>Регистрация создаёт настоящий аккаунт и публичный игровой профиль. Пароль не отображается в профиле.</p>
+</article>
+</div>
+</section>
+<section id="profile" class="account-profile">
+<div class="account-card">
+<p class="eyebrow">PERSONAL CABINET</p><h1>Личный кабинет</h1>
+<div class="account-id"><div id="avatar" class="account-avatar">G</div><div><h2 id="welcome">Привет!</h2><div class="account-meta" id="created">Профиль GameHub</div></div></div>
+<form id="profile-form"><div class="account-details">
+<label>Основная игра<select name="game"><option>CS2</option><option>WarDogs</option><option>Valorant</option><option>Apex Legends</option><option>Dota 2</option></select></label>
+<label>Ранг<input name="rank" maxlength="30"></label>
+<label>Регион<select name="region"><option value="EU">Европа</option><option value="CIS">СНГ</option><option value="NA">Северная Америка</option><option value="Other">Другой</option></select></label>
+<label>Когда играешь<select name="play_time"><option>Вечером</option><option>Днём</option><option>Ночью</option><option>По выходным</option><option>По-разному</option></select></label>
+<label>Стиль игры<select name="play_style"><option>Любой</option><option>Казуальный</option><option>Рейтинговый</option><option>Соревновательный</option></select></label>
+<label>Кого ищешь<select name="looking_for"><option>Напарника</option><option>Команду</option><option>Пати</option></select></label>
+</div><p id="profile-message" class="account-message" role="status"></p><button class="btn primary" type="submit">Сохранить профиль</button></form>
+<div class="account-links"><a class="btn" href="/#">Вернуться к GameHub</a><button id="logout" class="btn" type="button">Выйти из аккаунта</button></div>
+</div>
+</section>
+</main>
+<script>
+const $=s=>document.querySelector(s);
+const auth=$("#auth"),profile=$("#profile"),authMessage=$("#auth-message"),profileMessage=$("#profile-message");
+let mode="login";
+async function request(url,opts={}){const r=await fetch(url,{credentials:"same-origin",...opts,headers:{"Content-Type":"application/json",...(opts.headers||{})}});const d=await r.json().catch(()=>({}));if(!r.ok)throw Error(d.detail||"Не удалось выполнить запрос");return d}
+function message(el,text,ok=false){el.textContent=text;el.classList.toggle("ok",ok)}
+function showMode(next){mode=next;$("#login-form").hidden=next!=="login";$("#register-form").hidden=next!=="register";$("#tab-login").classList.toggle("active",next==="login");$("#tab-register").classList.toggle("active",next==="register");message(authMessage,"")}
+$("#tab-login").addEventListener("click",()=>showMode("login"));$("#tab-register").addEventListener("click",()=>showMode("register"));
+function showProfile(u){auth.classList.add("hide");profile.classList.add("show");$("#welcome").textContent=u.nickname;$("#avatar").textContent=(u.nickname||"G")[0].toUpperCase();$("#created").textContent="Игровой профиль · "+(u.wins||0)+" побед";const f=$("#profile-form");for(const k of ["game","rank","region","play_time","play_style","looking_for"]){if(f.elements[k]&&u[k]!=null)f.elements[k].value=u[k]}}
+$("#login-form").addEventListener("submit",async e=>{e.preventDefault();message(authMessage,"");const data=Object.fromEntries(new FormData(e.currentTarget));try{await request("/api/auth/login",{method:"POST",body:JSON.stringify(data)});location.reload()}catch(err){message(authMessage,err.message)}});
+$("#register-form").addEventListener("submit",async e=>{e.preventDefault();message(authMessage,"");const data=Object.fromEntries(new FormData(e.currentTarget));try{await request("/api/auth/register",{method:"POST",body:JSON.stringify(data)});location.reload()}catch(err){message(authMessage,err.message)}});
+$("#profile-form").addEventListener("submit",async e=>{e.preventDefault();message(profileMessage,"");const data=Object.fromEntries(new FormData(e.currentTarget));try{const u=await request("/api/auth/profile",{method:"PATCH",body:JSON.stringify(data)});showProfile(u);message(profileMessage,"Профиль сохранён",true)}catch(err){message(profileMessage,err.message)}});
+$("#logout").addEventListener("click",async()=>{try{await request("/api/auth/logout",{method:"POST"});location.reload()}catch(err){message(profileMessage,err.message)}});
+(async()=>{try{const u=await request("/api/auth/me");showProfile(u)}catch{showMode("login")}})();
+if("serviceWorker"in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("/sw.js").catch(()=>{}));
+</script>
+</body></html>

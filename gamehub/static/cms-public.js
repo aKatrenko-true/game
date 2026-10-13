@@ -32,7 +32,7 @@
   }
   const games=bySlug.games,gameEl=document.querySelector(".game-showcase");
   if(games&&gameEl){gameEl.hidden=!games.visible;const h=gameEl.querySelector("h2");if(h&&games.title)h.textContent=games.title;const p=gameEl.querySelector(".showcase-heading>p");if(p&&games.body)p.textContent=games.body}
-  const playerSection=bySlug.players,matchSection=bySlug.matches;
+  const playerSection=bySlug.players,teamSection=bySlug.teams,matchSection=bySlug.matches;
   const playerPanel=document.querySelector("#featured")?.closest(".panel"),matchPanel=document.querySelector("#featured-matches")?.closest(".panel");
   if(playerSection&&playerPanel){playerPanel.hidden=!playerSection.visible;const h=playerPanel.querySelector("h2");if(h&&playerSection.title)h.textContent=playerSection.title}
   if(matchSection&&matchPanel){matchPanel.hidden=!matchSection.visible;const h=matchPanel.querySelector("h2");if(h&&matchSection.title)h.textContent=matchSection.title}

@@ -103,3 +103,64 @@ def test_postgres_team_and_match_endpoints():
         assert match.status_code == 201, match.text
         assert match.json()["team_a"] == team_a
         assert any(x["id"] == match.json()["id"] for x in client.get("/api/matches").json())
+
+
+def test_sqlite_migration_script_copies_data_and_is_rerunnable(tmp_path, monkeypatch):
+    import sqlite3
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    source_path = tmp_path / "source.db"
+    source = sqlite3.connect(source_path)
+    source.executescript("""
+        CREATE TABLE users (
+            id INTEGER PRIMARY KEY,
+            nickname TEXT NOT NULL UNIQUE,
+            password_hash TEXT NOT NULL,
+            is_blocked INTEGER NOT NULL DEFAULT 0,
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE TABLE players (
+            id INTEGER PRIMARY KEY,
+            nickname TEXT UNIQUE NOT NULL,
+            game TEXT NOT NULL,
+            rank TEXT NOT NULL DEFAULT 'Unranked',
+            wins INTEGER NOT NULL DEFAULT 0,
+            region TEXT NOT NULL DEFAULT 'EU',
+            play_time TEXT NOT NULL DEFAULT 'Вечером',
+            play_style TEXT NOT NULL DEFAULT 'Любой',
+            looking_for TEXT NOT NULL DEFAULT 'Напарника',
+            user_id INTEGER UNIQUE
+        );
+        INSERT INTO users(id,nickname,password_hash) VALUES(71,'MigrationUser','hashed-test-value');
+        INSERT INTO players(id,nickname,game,rank,wins,user_id)
+        VALUES(81,'MigrationPlayer','CS2','Gold Nova',7,71);
+    """)
+    source.commit()
+    source.close()
+
+    env = os.environ.copy()
+    env["DATABASE_URL"] = gamehub.DATABASE_URL
+    script = str(gamehub.BASE / "migrate_sqlite_to_postgres.py")
+    for _ in range(2):
+        result = subprocess.run(
+            [sys.executable, script, str(source_path)],
+            cwd=str(gamehub.BASE),
+            env=env,
+            text=True,
+            capture_output=True,
+            timeout=30,
+        )
+        assert result.returncode == 0, result.stdout + "\n" + result.stderr
+
+    with gamehub.db() as con:
+        user = con.execute("SELECT * FROM users WHERE id=?", (71,)).fetchone()
+        player = con.execute("SELECT * FROM players WHERE id=?", (81,)).fetchone()
+        assert user["nickname"] == "MigrationUser"
+        assert user["password_hash"] == "hashed-test-value"
+        assert player["nickname"] == "MigrationPlayer"
+        assert player["user_id"] == 71
+        assert con.execute("SELECT COUNT(*) FROM users WHERE id=71").fetchone()[0] == 1
+        assert con.execute("SELECT COUNT(*) FROM players WHERE id=81").fetchone()[0] == 1
+    assert source_path.exists()

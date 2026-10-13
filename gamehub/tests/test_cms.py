@@ -90,3 +90,52 @@ def test_cms_settings_persist_and_reject_unknown_keys_and_invalid_colors(client)
                             ("private_note", "must stay private"))
     public_settings = client.get("/api/cms/content").json()["settings"]
     assert "private_note" not in public_settings
+
+
+def test_cms_settings_and_media_survive_database_reinitialization(client):
+    section = client.post("/api/admin/cms/sections", headers=admin_headers(), json={
+        "title": "Media check", "slug": "media-check", "kind": "gallery",
+        "body": "Persist this content", "image_url": "data:image/png;base64,dGVzdA==",
+        "visible": True, "sort_order": 77,
+    })
+    assert section.status_code == 201, section.text
+    section_id = section.json()["id"]
+    assert client.put("/api/admin/cms/settings/site_title", headers=admin_headers(),
+                      json={"value": "Persistent GameHub"}).status_code == 200
+
+    # Re-running table initialization simulates the application startup path after a restart.
+    gamehub.init_cms_tables()
+    public = client.get("/api/cms/content")
+    assert public.status_code == 200
+    assert public.json()["settings"]["site_title"] == "Persistent GameHub"
+    saved = next(s for s in public.json()["sections"] if s["id"] == section_id)
+    assert saved["body"] == "Persist this content"
+    assert saved["image_url"] == "data:image/png;base64,dGVzdA=="
+    assert saved["sort_order"] == 77
+
+
+def test_cms_http_smoke_routes_and_static_assets(client):
+    assert client.get("/").status_code == 200
+    assert "cms-public.js" in client.get("/").text
+    assert client.get("/admin/cms").status_code == 200
+    assert client.get("/static/cms.js").status_code == 200
+    assert client.get("/static/cms-public.js").status_code == 200
+    assert client.get("/api/health").json()["status"] == "ok"
+
+
+def test_public_cms_hidden_section_keeps_no_private_text_or_image(client):
+    created = client.post("/api/admin/cms/sections", headers=admin_headers(), json={
+        "title": "Secret draft", "slug": "secret-draft", "kind": "custom",
+        "body": "PRIVATE CONTENT", "image_url": "data:image/png;base64,c2VjcmV0",
+        "visible": True, "sort_order": 99,
+    })
+    assert created.status_code == 201
+    section_id = created.json()["id"]
+    hidden = client.patch(f"/api/admin/cms/sections/{section_id}",
+                          headers=admin_headers(), json={"visible": False})
+    assert hidden.status_code == 200
+    public = client.get("/api/cms/content").json()
+    section = next(s for s in public["sections"] if s["id"] == section_id)
+    assert section["visible"] in (False, 0)
+    assert section["body"] == ""
+    assert section["image_url"] == ""

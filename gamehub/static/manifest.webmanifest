@@ -1,0 +1,20 @@
+{
+  "name": "GameHub — Найди свою команду",
+  "short_name": "GameHub",
+  "description": "Находи напарников, собирай команды и следи за игровыми матчами.",
+  "lang": "ru",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0b0e14",
+  "theme_color": "#0b0e14",
+  "icons": [
+    {
+      "src": "/static/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

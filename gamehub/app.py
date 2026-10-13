@@ -2,7 +2,8 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 import os, sqlite3
 from typing import Optional
-from fastapi import FastAPI, HTTPException
+import secrets
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
@@ -159,3 +160,116 @@ def patch_match(match_id:int,p:MatchPatch):
         if not c.execute("SELECT id FROM matches WHERE id=?",(match_id,)).fetchone(): raise HTTPException(status_code=404,detail="Match not found")
         vals.append(match_id); c.execute("UPDATE matches SET "+",".join(fields)+" WHERE id=?",vals)
         return dict(c.execute("SELECT * FROM matches WHERE id=?",(match_id,)).fetchone())
+
+
+# Admin API. Set ADMIN_PASSWORD in Render Environment before using /admin.
+def check_admin(request: Request):
+    expected = os.getenv("ADMIN_PASSWORD", "")
+    supplied = request.headers.get("X-Admin-Password", "")
+    if not expected:
+        raise HTTPException(status_code=503, detail="Администратор не настроен: добавьте ADMIN_PASSWORD в Render Environment")
+    if not secrets.compare_digest(supplied, expected):
+        raise HTTPException(status_code=401, detail="Неверный пароль администратора")
+
+class AdminPlayerPatch(BaseModel):
+    rank: Optional[str] = Field(default=None, max_length=30)
+    wins: Optional[int] = Field(default=None, ge=0, le=999999)
+
+@app.get("/admin", include_in_schema=False)
+def admin_page():
+    return FileResponse(BASE / "static" / "admin.html")
+
+@app.get("/api/admin/summary")
+def admin_summary(request: Request):
+    check_admin(request)
+    with db() as c:
+        return {
+            "players": c.execute("SELECT COUNT(*) FROM players").fetchone()[0],
+            "teams": c.execute("SELECT COUNT(*) FROM teams").fetchone()[0],
+            "matches": c.execute("SELECT COUNT(*) FROM matches").fetchone()[0],
+            "warDogsPlayers": c.execute("SELECT COUNT(*) FROM players WHERE game='WarDogs'").fetchone()[0],
+        }
+
+@app.patch("/api/admin/players/{player_id}")
+def admin_update_player(player_id: int, p: AdminPlayerPatch, request: Request):
+    check_admin(request)
+    fields, vals = [], []
+    if p.rank is not None:
+        fields.append("rank=?"); vals.append(p.rank.strip())
+    if p.wins is not None:
+        fields.append("wins=?"); vals.append(p.wins)
+    if not fields:
+        raise HTTPException(status_code=422, detail="Укажи ранг или количество побед")
+    with db() as c:
+        if not c.execute("SELECT id FROM players WHERE id=?", (player_id,)).fetchone():
+            raise HTTPException(status_code=404, detail="Игрок не найден")
+        vals.append(player_id)
+        c.execute("UPDATE players SET " + ",".join(fields) + " WHERE id=?", vals)
+        return dict(c.execute("SELECT * FROM players WHERE id=?", (player_id,)).fetchone())
+
+@app.delete("/api/admin/players/{player_id}")
+def admin_delete_player(player_id: int, request: Request):
+    check_admin(request)
+    with db() as c:
+        cur = c.execute("DELETE FROM players WHERE id=?", (player_id,))
+        if cur.rowcount == 0:
+            raise HTTPException(status_code=404, detail="Игрок не найден")
+    return {"ok": True}
+
+@app.post("/api/admin/teams", status_code=201)
+def admin_create_team(p: TeamIn, request: Request):
+    check_admin(request)
+    with db() as c:
+        try:
+            cur = c.execute("INSERT INTO teams(name,game,description) VALUES(?,?,?)", (p.name.strip(), p.game.strip(), p.description.strip()))
+            return dict(c.execute("SELECT * FROM teams WHERE id=?", (cur.lastrowid,)).fetchone())
+        except sqlite3.IntegrityError:
+            raise HTTPException(status_code=409, detail="Команда с таким названием уже существует")
+
+@app.delete("/api/admin/teams/{team_id}")
+def admin_delete_team(team_id: int, request: Request):
+    check_admin(request)
+    with db() as c:
+        cur = c.execute("DELETE FROM teams WHERE id=?", (team_id,))
+        if cur.rowcount == 0:
+            raise HTTPException(status_code=404, detail="Команда не найдена")
+    return {"ok": True}
+
+@app.post("/api/admin/matches", status_code=201)
+def admin_create_match(p: MatchIn, request: Request):
+    check_admin(request)
+    if p.team_a.strip().casefold() == p.team_b.strip().casefold():
+        raise HTTPException(status_code=422, detail="Команда не может играть сама с собой")
+    with db() as c:
+        cur = c.execute("INSERT INTO matches(game,team_a,team_b,scheduled_at) VALUES(?,?,?,?)", (p.game.strip(), p.team_a.strip(), p.team_b.strip(), p.scheduled_at.strip()))
+        return dict(c.execute("SELECT * FROM matches WHERE id=?", (cur.lastrowid,)).fetchone())
+
+@app.patch("/api/admin/matches/{match_id}")
+def admin_update_match(match_id: int, p: MatchPatch, request: Request):
+    check_admin(request)
+    if p.status is not None and p.status not in {"Scheduled", "Live", "Completed"}:
+        raise HTTPException(status_code=422, detail="Некорректный статус матча")
+    fields, vals = [], []
+    if p.status is not None:
+        fields.append("status=?"); vals.append(p.status)
+    if p.score_a is not None:
+        fields.append("score_a=?"); vals.append(p.score_a)
+    if p.score_b is not None:
+        fields.append("score_b=?"); vals.append(p.score_b)
+    if not fields:
+        raise HTTPException(status_code=422, detail="Нет полей для обновления")
+    with db() as c:
+        if not c.execute("SELECT id FROM matches WHERE id=?", (match_id,)).fetchone():
+            raise HTTPException(status_code=404, detail="Матч не найден")
+        vals.append(match_id)
+        c.execute("UPDATE matches SET " + ",".join(fields) + " WHERE id=?", vals)
+        return dict(c.execute("SELECT * FROM matches WHERE id=?", (match_id,)).fetchone())
+
+@app.delete("/api/admin/matches/{match_id}")
+def admin_delete_match(match_id: int, request: Request):
+    check_admin(request)
+    with db() as c:
+        cur = c.execute("DELETE FROM matches WHERE id=?", (match_id,))
+        if cur.rowcount == 0:
+            raise HTTPException(status_code=404, detail="Матч не найден")
+    return {"ok": True}

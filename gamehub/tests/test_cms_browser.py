@@ -105,6 +105,7 @@ def test_hidden_cms_views_hide_desktop_mobile_navigation_and_block_spa_route(bro
         assert restored.status == 200, restored.text()
         page.reload(wait_until="networkidle")
         assert page.locator('.sidebar [data-view="teams"]').is_visible()
+        page.set_viewport_size({"width": 390, "height": 844})
         assert page.locator('.mobile-nav [data-view="teams"]').is_visible()
         browser.close()
 

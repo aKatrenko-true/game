@@ -136,3 +136,35 @@ def test_cms_custom_content_is_rendered_as_text_without_executing_markup(browser
         assert section.locator("img").count() == 0
         assert page.evaluate("window.__cmsXss || 0") == 0
         browser.close()
+
+
+def test_cms_admin_login_and_appearance_editor_work_in_browser(browser_app):
+    with sync_playwright() as p:
+        browser = p.chromium.launch()
+        page = browser.new_page()
+        errors = []
+        page.on("pageerror", lambda error: errors.append(str(error)))
+        page.goto(browser_app + "/admin/cms", wait_until="networkidle")
+
+        assert page.locator("#cms-login").is_visible()
+        assert page.locator("#cms-app").is_hidden()
+
+        page.locator("#cms-password").fill("wrong-password")
+        page.locator("#cms-login-form button[type=submit]").click()
+        assert page.locator("#cms-login-error").inner_text() != ""
+
+        page.locator("#cms-password").fill("browser-cms-test-password")
+        page.locator("#cms-login-form button[type=submit]").click()
+        assert page.locator("#cms-app").is_visible()
+
+        page.locator('[data-cms-tab="appearance"]').click()
+        page.locator('input[name="site_title"]').fill("GameHub Browser Test")
+        page.locator('input[name="primary_color"]').fill("#123ABC")
+        page.locator("#appearance-form button[type=submit]").click()
+        page.wait_for_function("document.querySelector('#cms-notice')?.textContent.includes('сохранены')")
+
+        public = page.request.get(browser_app + "/api/cms/content").json()
+        assert public["settings"]["site_title"] == "GameHub Browser Test"
+        assert public["settings"]["primary_color"] == "#123ABC"
+        assert not errors, "CMS browser JavaScript errors: " + "; ".join(errors)
+        browser.close()

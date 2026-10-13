@@ -311,7 +311,8 @@ def create_team(p: TeamIn):
             return dict(c.execute("SELECT * FROM teams WHERE id=?",(cur.lastrowid,)).fetchone())
         except Exception as exc:
             if not is_integrity_error(exc):
-                raise raise HTTPException(status_code=409,detail="Team name already exists")
+                raise
+            raise HTTPException(status_code=409,detail="Team name already exists")
 
 @app.get("/api/matches")
 def matches(status: Optional[str]=None,game: Optional[str]=None):

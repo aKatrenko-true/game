@@ -24,6 +24,11 @@ def main():
 
     import psycopg
     from psycopg import sql
+    # Ensure the destination schema exists without seeding demo rows.
+    import app as gamehub
+    if not gamehub.USE_POSTGRES:
+        raise SystemExit("Import app with DATABASE_URL set before running migration")
+    gamehub.init_db()
 
     source = sqlite3.connect(f"file:{source_path}?mode=ro", uri=True)
     source.row_factory = sqlite3.Row

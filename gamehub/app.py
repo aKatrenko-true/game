@@ -62,6 +62,9 @@ def init_db():
               ("WarDogs","WarDogs Alpha","WarDogs Wolves",0,0,"Scheduled","2026-10-17 19:00"),
               ("WarDogs","WarDogs Night Raid","WarDogs Alpha",0,0,"Scheduled","2026-10-18 20:00")])
 
+# Ensure database schema exists before serving requests.
+init_db()
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()

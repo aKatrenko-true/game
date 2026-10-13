@@ -526,6 +526,12 @@ class CMSSectionPatch(BaseModel):
 class CMSSettingIn(BaseModel):
     value: str = Field(max_length=20000)
 
+CMS_PUBLIC_SETTING_KEYS = {
+    "site_title", "logo_text", "meta_description",
+    "menu_players", "menu_teams", "menu_matches", "menu_lfg",
+    "primary_color", "background_color",
+}
+
 def init_cms_tables():
     with db() as c:
         c.executescript("""
@@ -613,8 +619,10 @@ def cms_get_settings(request: Request):
 @app.put("/api/admin/cms/settings/{key}")
 def cms_set_setting(key: str, p: CMSSettingIn, request: Request):
     check_admin(request)
-    if not __import__("re").fullmatch(r"[a-z][a-z0-9_]{0,59}",key):
-        raise HTTPException(status_code=422,detail="Некорректный ключ настройки")
+    if key not in CMS_PUBLIC_SETTING_KEYS:
+        raise HTTPException(status_code=422,detail="Неизвестный ключ настройки")
+    if key.endswith("_color") and not __import__("re").fullmatch(r"#[0-9a-fA-F]{6}", p.value):
+        raise HTTPException(status_code=422,detail="Цвет должен быть в формате HEX, например #c3ff68")
     with db() as c:
         c.execute("INSERT INTO cms_settings(key,value,updated_at) VALUES(?,?,CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=CURRENT_TIMESTAMP",(key,p.value))
     return {"key":key,"value":p.value}
@@ -623,7 +631,9 @@ def cms_set_setting(key: str, p: CMSSettingIn, request: Request):
 def cms_public_content():
     with db() as c:
         sections=[dict(r) for r in c.execute("""SELECT id,CASE WHEN visible=1 THEN title ELSE '' END AS title,slug,kind,CASE WHEN visible=1 THEN body ELSE '' END AS body,CASE WHEN visible=1 THEN image_url ELSE '' END AS image_url,visible,sort_order FROM cms_sections ORDER BY sort_order,id""").fetchall()]
-        settings={r["key"]:r["value"] for r in c.execute("SELECT key,value FROM cms_settings").fetchall()}
+        settings={r["key"]:r["value"] for r in c.execute(
+            "SELECT key,value FROM cms_settings WHERE key IN (" + ",".join("?" for _ in CMS_PUBLIC_SETTING_KEYS) + ")",
+            tuple(sorted(CMS_PUBLIC_SETTING_KEYS))).fetchall()}
     return {"sections":sections,"settings":settings}
 
 

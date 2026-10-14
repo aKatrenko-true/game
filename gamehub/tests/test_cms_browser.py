@@ -206,3 +206,75 @@ def test_cms_media_upload_saves_image_to_selected_section(browser_app, tmp_path)
         assert selected["image_url"].startswith("data:image/png;base64,")
         assert b64encode(png_bytes).decode() in selected["image_url"]
         browser.close()
+
+
+
+def test_cms_section_edits_persist_after_reload(browser_app):
+    password = "browser-cms-test-password"
+    with sync_playwright() as p:
+        browser = p.chromium.launch()
+        page = browser.new_page()
+        page.goto(browser_app + "/admin/cms", wait_until="networkidle")
+        page.locator("#cms-password").fill(password)
+        page.locator("#cms-login-form button").click()
+        page.wait_for_function("document.querySelector('#cms-app') && !document.querySelector('#cms-app').hidden")
+
+        section = page.locator(".cms-section").first
+        section_id = int(section.get_attribute("data-id"))
+        title = section.locator('[data-field="title"]')
+        body = section.locator('[data-field="body"]')
+        updated_title = "Browser persistence regression"
+        updated_body = "CMS body persists after page reload"
+        title.fill(updated_title)
+        body.fill(updated_body)
+        section.locator(".save-section").click()
+        page.wait_for_function("document.querySelector('#cms-notice')?.textContent.includes('Изменения сохранены')")
+
+        page.reload(wait_until="networkidle")
+        page.wait_for_function("document.querySelector('#cms-app') && !document.querySelector('#cms-app').hidden")
+        saved = page.locator(f'.cms-section[data-id="{section_id}"]')
+        assert saved.locator('[data-field="title"]').input_value() == updated_title
+        assert saved.locator('[data-field="body"]').input_value() == updated_body
+
+        response = page.request.get(
+            browser_app + "/api/admin/cms/sections",
+            headers={"X-Admin-Password": password},
+        )
+        assert response.status == 200, response.text()
+        persisted = next(item for item in response.json() if item["id"] == section_id)
+        assert persisted["title"] == updated_title
+        assert persisted["body"] == updated_body
+        browser.close()
+
+
+@pytest.mark.parametrize(
+    ("name", "mime_type", "buffer", "expected_notice"),
+    [
+        ("notes.txt", "text/plain", b"not an image", "Неподдерживаемый формат"),
+        ("oversized.png", "image/png", b"x" * (int(1.5 * 1024 * 1024) + 1), "Файл больше 1,5 МБ"),
+    ],
+)
+def test_cms_media_rejects_unsupported_or_oversized_files(
+    browser_app, name, mime_type, buffer, expected_notice
+):
+    password = "browser-cms-test-password"
+    with sync_playwright() as p:
+        browser = p.chromium.launch()
+        page = browser.new_page()
+        page.goto(browser_app + "/admin/cms", wait_until="networkidle")
+        page.locator("#cms-password").fill(password)
+        page.locator("#cms-login-form button").click()
+        page.wait_for_function("document.querySelector('#cms-app') && !document.querySelector('#cms-app').hidden")
+        page.locator('[data-cms-tab="media"]').click()
+
+        page.locator("#media-file").set_input_files({
+            "name": name,
+            "mimeType": mime_type,
+            "buffer": buffer,
+        })
+        page.wait_for_function(
+            "() => document.querySelector('#cms-notice')?.textContent.includes(" + repr(expected_notice) + ")"
+        )
+        assert page.locator("#media-save").is_disabled()
+        assert page.locator("#media-file").input_value() == ""
+        browser.close()

@@ -160,7 +160,7 @@ def test_cms_admin_login_and_appearance_editor_work_in_browser(browser_app):
         page.locator('[data-cms-tab="appearance"]').click()
         page.locator('input[name="site_title"]').fill("GameHub Browser Test")
         page.locator('input[name="primary_color"]').fill("#123ABC")
-        page.locator("#appearance-form button[type=submit]").click()
+        page.locator("#appearance-form button").click()
         page.wait_for_function("document.querySelector('#cms-notice')?.textContent.includes('сохранены')")
 
         public = page.request.get(browser_app + "/api/cms/content").json()
@@ -195,7 +195,7 @@ def test_cms_media_upload_saves_image_to_selected_section(browser_app, tmp_path)
         })
         page.wait_for_function("document.querySelector('#media-save') && !document.querySelector('#media-save').disabled")
         page.locator("#media-save").click()
-        page.wait_for_function("document.querySelector('#cms-notice')?.textContent.includes('сохранены')")
+        page.wait_for_function("document.querySelector('#cms-notice')?.textContent.includes('Изображение сохранено')")
 
         section_id = int(page.locator("#media-section").input_value())
         sections = page.request.get(

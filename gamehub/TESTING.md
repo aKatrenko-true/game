@@ -28,6 +28,8 @@
 
 | SEC-013 | CMS public image URL handling | CMS section and game-card image values were interpolated into CSS `url(...)`; hero images only replaced double quotes, while game-card images used a separate sanitization path | Persisted CMS values are untrusted input on the public page; inconsistent filtering could allow malformed URLs or CSS-breaking characters | Added shared `safeImageUrl` allowlist for HTTPS and supported base64 image data URLs; used it for hero and game-card backgrounds; added frontend contract test | Fix committed; CI retest pending |
 
+| CMS-003 | CMS appearance form | Настройки оформления отправлялись отдельными запросами; сбой посреди сохранения мог оставить частично обновлённую конфигурацию | Неатомарный цикл PUT по одному ключу | Добавлен bulk endpoint, который валидирует весь набор до записи, UI отправляет один запрос, добавлены API/frontend тесты | Исправление внесено; CI retest ожидается |
+
 ## Текущий набор регрессионных сценариев
 
 - Главная страница открывается в Chromium на мобильном viewport; проверяются подключение API, видимость hero и отсутствие необработанных JS-ошибок.

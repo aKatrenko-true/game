@@ -30,6 +30,18 @@
     if(hero.image_url)heroEl.style.backgroundImage='linear-gradient(90deg,#0c111def 0%,#101321d9 48%,#151329a8 100%),url("'+hero.image_url.replace(/"/g,'%22')+'")';
    }
   }
+  const gameImageSettings=[
+   [".game-cs2",settings.game_cs2_image],
+   [".game-valorant",settings.game_valorant_image],
+   [".game-wd",settings.game_wd_image],
+   [".game-apex",settings.game_apex_image]
+  ];
+  for(const [selector,image] of gameImageSettings){
+   const tile=document.querySelector(selector);
+   if(tile&&image&&/^(https:\/\/|data:image\/(png|jpeg|webp|gif|svg\+xml);)/i.test(image)){
+    tile.style.backgroundImage='linear-gradient(180deg,#080b1210 0%,#080b1260 38%,#080b12f0 100%),url("'+image.replace(/["\\\n\r]/g,"")+'")';
+   }
+  }
   const games=bySlug.games,gameEl=document.querySelector(".game-showcase");
   if(games&&gameEl){gameEl.hidden=!games.visible;const h=gameEl.querySelector("h2");if(h&&games.title)h.textContent=games.title;const p=gameEl.querySelector(".showcase-heading>p");if(p&&games.body)p.textContent=games.body}
   const playerSection=bySlug.players,teamSection=bySlug.teams,matchSection=bySlug.matches;

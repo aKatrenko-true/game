@@ -48,9 +48,9 @@
    [".game-apex",settings.game_apex_image]
   ];
   for(const [selector,image] of gameImageSettings){
-   const tile=document.querySelector(selector);
-   if(tile&&image&&/^(https:\/\/|data:image\/(png|jpeg|webp|gif|svg\+xml);)/i.test(image)){
-    tile.style.backgroundImage='linear-gradient(180deg,#080b1210 0%,#080b1260 38%,#080b12f0 100%),url("'+image.replace(/["\\\n\r]/g,"")+'")';
+   const tile=document.querySelector(selector),safeImage=safeImageUrl(image);
+   if(tile&&safeImage){
+    tile.style.backgroundImage='linear-gradient(180deg,#080b1210 0%,#080b1260 38%,#080b12f0 100%),url("'+safeImage+'")';
    }
   }
   const games=bySlug.games,gameEl=document.querySelector(".game-showcase");

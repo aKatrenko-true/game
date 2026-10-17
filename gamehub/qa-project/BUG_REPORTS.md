@@ -79,3 +79,16 @@
 - **Retest:** CI запущен, результат пока не подтверждён: [workflow run](https://github.com/aKatrenko-true/game/actions/runs/39034195390).
 - **Доказательство:** логи GitHub Actions; отдельный скриншот не создан.
 - **Связанные кейсы:** GH-CMS-AUTH-006, GH-CMS-CRUD-001…007, GH-CMS-ERR-003.
+
+
+## GH-BUG-008 — CMS image URL validation before CSS interpolation
+- **Статус:** Исправление внесено; CI retest ожидается.
+- **Компонент:** Frontend security / `gamehub/static/cms-public.js`.
+- **Severity / Priority:** Security hardening; P1 до проверки. Эксплуатация не подтверждена.
+- **Предусловия:** CMS image URL сохранён в hero или настройке карточки игры.
+- **Наблюдение:** hero URL попадал в CSS `backgroundImage` после замены только двойных кавычек; изображения карточек использовали другую фильтрацию. Значения из БД следует считать недоверенными при выводе в публичном UI.
+- **Ожидаемый результат:** применяется только URL с разрешённой схемой и допустимым форматом; значения с кавычками, скобками, пробелами, переносами строк или неизвестной схемой не вставляются в CSS.
+- **Исправление:** общий `safeImageUrl` разрешает HTTPS URL и base64 data URL поддерживаемых image MIME-типов; helper используется для hero и карточек игр.
+- **Связанный тест:** `test_cms_image_urls_are_validated_before_css_background_interpolation`.
+- **Доказательства:** исходный diff и CI после коммита; реальная эксплуатация не подтверждена.
+- **Retest / Regression:** ожидается CI; ручной production retest Not Run.

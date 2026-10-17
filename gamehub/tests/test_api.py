@@ -81,7 +81,7 @@ def test_lfg_validation_rejects_unknown_post_type():
         register = client.post("/api/auth/register", json={
             "nickname":"LfgTester_02","password":"TestPassword_123","game":"CS2"
         })
-        assert register.status_code == 200
+        assert register.status_code == 201
         r = client.post("/api/lfg", json={"game":"CS2","post_type":"whatever"})
         assert r.status_code == 422
 
@@ -89,7 +89,7 @@ def test_lfg_user_cannot_close_another_users_post():
     with TestClient(gamehub.app) as first:
         assert first.post("/api/auth/register", json={
             "nickname":"LfgOwner_01","password":"TestPassword_123","game":"CS2"
-        }).status_code == 200
+        }).status_code == 201
         post = first.post("/api/lfg", json={"game":"CS2","post_type":"duo"})
         assert post.status_code == 201
         post_id = post.json()["id"]

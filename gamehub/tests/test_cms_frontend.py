@@ -63,5 +63,5 @@ def test_cms_image_urls_are_validated_before_css_background_interpolation():
     assert "const safeImageUrl=value=>" in public_script
     assert 'if(tile&&safeImage)' in public_script
     assert "const heroImage=safeImageUrl(hero.image_url)" in public_script
-    assert 'url("'+ "'+safeImage+'"+ '")' in public_script
+    assert """url("'+safeImage+'")""" in public_script
     assert 'hero.image_url.replace(/"/g' not in public_script

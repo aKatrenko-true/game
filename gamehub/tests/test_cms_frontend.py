@@ -65,3 +65,9 @@ def test_cms_image_urls_are_validated_before_css_background_interpolation():
     assert "const heroImage=safeImageUrl(hero.image_url)" in public_script
     assert """url("'+safeImage+'")""" in public_script
     assert 'hero.image_url.replace(/"/g' not in public_script
+
+
+def test_cms_appearance_form_uses_single_bulk_settings_request():
+    editor = (STATIC / "cms.js").read_text(encoding="utf-8")
+    assert 'req("/api/admin/cms/settings",{method:"PUT",body:JSON.stringify({settings:values})})' in editor
+    assert 'req("/api/admin/cms/settings/"+k' not in editor

@@ -56,3 +56,12 @@ def test_game_card_images_are_editable_in_media_library_and_publicly_applied():
     for key in ("game_cs2_image", "game_valorant_image", "game_wd_image", "game_apex_image"):
         assert key in editor and key in public_script
     assert 'JSON.stringify({image_url:dataUrl})' in editor
+
+
+def test_cms_image_urls_are_validated_before_css_background_interpolation():
+    public_script = (STATIC / "cms-public.js").read_text(encoding="utf-8")
+    assert "const safeImageUrl=value=>" in public_script
+    assert 'if(tile&&safeImage)' in public_script
+    assert "const heroImage=safeImageUrl(hero.image_url)" in public_script
+    assert 'url("'+ "'+safeImage+'"+ '")' in public_script
+    assert 'hero.image_url.replace(/"/g' not in public_script

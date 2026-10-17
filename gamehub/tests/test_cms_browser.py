@@ -250,8 +250,15 @@ def test_cms_section_edits_persist_after_reload(browser_app):
 @pytest.mark.parametrize(
     ("name", "mime_type", "buffer", "expected_notice"),
     [
-        ("notes.txt", "text/plain", b"not an image", "Неподдерживаемый формат"),
-        ("oversized.png", "image/png", b"x" * (int(1.5 * 1024 * 1024) + 1), "Файл больше 1,5 МБ"),
+        pytest.param(
+            "notes.txt", "text/plain", b"not an image", "Неподдерживаемый формат",
+            id="unsupported-format",
+        ),
+        pytest.param(
+            "oversized.png", "image/png",
+            b"x" * (int(1.5 * 1024 * 1024) + 1), "Файл больше 1,5 МБ",
+            id="oversized-file",
+        ),
     ],
 )
 def test_cms_media_rejects_unsupported_or_oversized_files(

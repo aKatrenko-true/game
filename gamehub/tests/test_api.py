@@ -13,7 +13,7 @@ import app as gamehub
 bootstrap_db.unlink(missing_ok=True)
 
 def setup_function():
-    gamehub.DB_PATH = gamehub.BASE / "test_gamehub.db"
+    gamehub.DB_PATH = Path(tempfile.gettempdir()) / f"gamehub-test-{os.getpid()}.db"
     gamehub.init_db()
 
 def teardown_function():

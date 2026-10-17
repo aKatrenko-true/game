@@ -57,4 +57,4 @@ def test_game_card_images_are_editable_in_media_library_and_publicly_applied():
     for key in ("game_cs2_image", "game_valorant_image", "game_wd_image", "game_apex_image"):
         assert key in editor
         assert key in public_script
-    assert 'image_url:dataUrl' in editor
+    assert 'JSON.stringify({image_url:dataUrl})' in editor

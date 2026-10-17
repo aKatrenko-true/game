@@ -166,3 +166,35 @@ def test_game_card_image_settings_are_writable_and_public(client):
 def test_game_card_image_settings_reject_unknown_keys(client):
     response = client.put("/api/admin/cms/settings/game_unlisted_image", headers=admin_headers(), json={"value": "https://example.com/image.png"})
     assert response.status_code == 422
+
+
+def test_cms_bulk_settings_validates_all_values_before_writing(client):
+    before = client.get("/api/cms/content").json()["settings"]["site_title"]
+    rejected = client.put(
+        "/api/admin/cms/settings",
+        headers=admin_headers(),
+        json={"settings": {"site_title": "Should Not Persist", "primary_color": "red; background:url(https://example.com)"}},
+    )
+    assert rejected.status_code == 422
+    after = client.get("/api/cms/content").json()["settings"]["site_title"]
+    assert after == before
+
+    saved = client.put(
+        "/api/admin/cms/settings",
+        headers=admin_headers(),
+        json={"settings": {"site_title": "Atomic GameHub", "primary_color": "#123ABC"}},
+    )
+    assert saved.status_code == 200, saved.text
+    public = client.get("/api/cms/content").json()["settings"]
+    assert public["site_title"] == "Atomic GameHub"
+    assert public["primary_color"] == "#123ABC"
+
+
+def test_cms_bulk_settings_requires_admin_and_rejects_unknown_keys(client):
+    assert client.put("/api/admin/cms/settings", json={"settings": {"site_title": "No"}}).status_code == 401
+    response = client.put(
+        "/api/admin/cms/settings",
+        headers=admin_headers(),
+        json={"settings": {"private_note": "must not persist"}},
+    )
+    assert response.status_code == 422

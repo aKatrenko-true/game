@@ -1,5 +1,16 @@
+import os
+import tempfile
+from pathlib import Path
+
+# app.py initializes its database at import time. Keep that bootstrap database
+# outside the repository so collecting tests never creates gamehub/gamehub.db.
+bootstrap_db = Path(tempfile.gettempdir()) / f"gamehub-test-bootstrap-{os.getpid()}.db"
+os.environ["GAMEHUB_DB"] = str(bootstrap_db)
+
 from fastapi.testclient import TestClient
 import app as gamehub
+
+bootstrap_db.unlink(missing_ok=True)
 
 def setup_function():
     gamehub.DB_PATH = gamehub.BASE / "test_gamehub.db"
@@ -53,7 +64,7 @@ def test_lfg_create_and_list_for_authenticated_user():
             "game":"CS2","rank":"Gold Nova","region":"EU",
             "play_time":"Вечером","play_style":"Любой","looking_for":"Напарника"
         })
-        assert register.status_code == 200
+        assert register.status_code == 201
         created = client.post("/api/lfg", json={
             "game":"CS2","post_type":"duo","rank":"Gold Nova","region":"EU",
             "platform":"PC","language":"Русский","play_time":"Вечером",

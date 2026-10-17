@@ -155,3 +155,14 @@ def test_public_cms_hidden_section_keeps_no_private_text_or_image(client):
     assert section["visible"] in (False, 0)
     assert section["body"] == ""
     assert section["image_url"] == ""
+
+ 
+def test_game_card_image_settings_are_writable_and_public(client):
+    image = "data:image/png;base64," + ("a" * 30000)
+    response = client.put("/api/admin/cms/settings/game_apex_image", headers=admin_headers(), json={"value": image})
+    assert response.status_code == 200, response.text
+    assert client.get("/api/cms/content").json()["settings"]["game_apex_image"] == image
+
+def test_game_card_image_settings_reject_unknown_keys(client):
+    response = client.put("/api/admin/cms/settings/game_unlisted_image", headers=admin_headers(), json={"value": "https://example.com/image.png"})
+    assert response.status_code == 422

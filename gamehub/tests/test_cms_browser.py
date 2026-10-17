@@ -58,7 +58,7 @@ def test_homepage_runs_cms_without_browser_errors_and_supports_mobile(browser_ap
         page = browser.new_page(viewport={"width": 390, "height": 844}, is_mobile=True)
         page_errors = []
         page.on("pageerror", lambda error: page_errors.append(str(error)))
-        response = page.goto(browser_app, wait_until="networkidle")
+        response = page.goto(browser_app, wait_until="domcontentloaded")
         assert response and response.status == 200
         page.wait_for_function("document.querySelector('#api')?.textContent === 'Подключено'")
         assert page.locator(".mobile-nav").is_visible()
@@ -71,7 +71,7 @@ def test_hidden_cms_views_hide_desktop_mobile_navigation_and_block_spa_route(bro
     with sync_playwright() as p:
         browser = p.chromium.launch()
         page = browser.new_page(viewport={"width": 1280, "height": 900})
-        page.goto(browser_app, wait_until="networkidle")
+        page.goto(browser_app, wait_until="domcontentloaded")
         password = "browser-cms-test-password"
         for slug in ("players", "teams", "matches"):
             response = page.request.get(browser_app + "/api/admin/cms/sections",
@@ -86,7 +86,7 @@ def test_hidden_cms_views_hide_desktop_mobile_navigation_and_block_spa_route(bro
             )
             assert update.status == 200, update.text()
 
-        page.reload(wait_until="networkidle")
+        page.reload(wait_until="domcontentloaded")
         for view in ("players", "teams", "matches"):
             assert page.locator(f'.sidebar [data-view="{view}"]').is_hidden()
             assert page.locator(f'.mobile-nav [data-view="{view}"]').is_hidden()
@@ -103,7 +103,7 @@ def test_hidden_cms_views_hide_desktop_mobile_navigation_and_block_spa_route(bro
             data={"visible": True},
         )
         assert restored.status == 200, restored.text()
-        page.reload(wait_until="networkidle")
+        page.reload(wait_until="domcontentloaded")
         assert page.locator('.sidebar [data-view="teams"]').is_visible()
         page.set_viewport_size({"width": 390, "height": 844})
         assert page.locator('.mobile-nav [data-view="teams"]').is_visible()
@@ -129,7 +129,7 @@ def test_cms_custom_content_is_rendered_as_text_without_executing_markup(browser
             },
         )
         assert created.status == 201, created.text()
-        page.goto(browser_app, wait_until="networkidle")
+        page.goto(browser_app, wait_until="domcontentloaded")
         section = page.locator('[data-cms-slug="browser-xss-regression"]')
         assert section.is_visible()
         assert section.locator("p").inner_text() == '<img src=x onerror="window.__cmsXss=1">literal markup'
@@ -144,7 +144,7 @@ def test_cms_admin_login_and_appearance_editor_work_in_browser(browser_app):
         page = browser.new_page()
         errors = []
         page.on("pageerror", lambda error: errors.append(str(error)))
-        page.goto(browser_app + "/admin/cms", wait_until="networkidle")
+        page.goto(browser_app + "/admin/cms", wait_until="domcontentloaded")
 
         assert page.locator("#cms-login").is_visible()
         assert page.locator("#cms-app").is_hidden()
@@ -182,7 +182,7 @@ def test_cms_media_upload_saves_image_to_selected_section(browser_app, tmp_path)
     with sync_playwright() as p:
         browser = p.chromium.launch()
         page = browser.new_page()
-        page.goto(browser_app + "/admin/cms", wait_until="networkidle")
+        page.goto(browser_app + "/admin/cms", wait_until="domcontentloaded")
         page.locator("#cms-password").fill(password)
         page.locator("#cms-login-form button").click()
         page.wait_for_function("document.querySelector('#cms-app') && !document.querySelector('#cms-app').hidden")
@@ -214,7 +214,7 @@ def test_cms_section_edits_persist_after_reload(browser_app):
     with sync_playwright() as p:
         browser = p.chromium.launch()
         page = browser.new_page()
-        page.goto(browser_app + "/admin/cms", wait_until="networkidle")
+        page.goto(browser_app + "/admin/cms", wait_until="domcontentloaded")
         page.locator("#cms-password").fill(password)
         page.locator("#cms-login-form button").click()
         page.wait_for_function("document.querySelector('#cms-app') && !document.querySelector('#cms-app').hidden")
@@ -230,7 +230,7 @@ def test_cms_section_edits_persist_after_reload(browser_app):
         section.locator(".save-section").click()
         page.wait_for_function("document.querySelector('#cms-notice')?.textContent.includes('Изменения сохранены')")
 
-        page.reload(wait_until="networkidle")
+        page.reload(wait_until="domcontentloaded")
         page.wait_for_function("document.querySelector('#cms-app') && !document.querySelector('#cms-app').hidden")
         saved = page.locator(f'.cms-section[data-id="{section_id}"]')
         assert saved.locator('[data-field="title"]').input_value() == updated_title
@@ -261,7 +261,7 @@ def test_cms_media_rejects_unsupported_or_oversized_files(
     with sync_playwright() as p:
         browser = p.chromium.launch()
         page = browser.new_page()
-        page.goto(browser_app + "/admin/cms", wait_until="networkidle")
+        page.goto(browser_app + "/admin/cms", wait_until="domcontentloaded")
         page.locator("#cms-password").fill(password)
         page.locator("#cms-login-form button").click()
         page.wait_for_function("document.querySelector('#cms-app') && !document.querySelector('#cms-app').hidden")

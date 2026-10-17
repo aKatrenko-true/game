@@ -1,6 +1,6 @@
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
-let password = sessionStorage.getItem("gh_admin_password") || "";
+let password = "";
 let tab = "players", players = [], teams = [], matches = [], users = [];
 const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 async function api(url, options) {
@@ -20,11 +20,11 @@ async function loadData() {
 }
 async function submitLogin(event) {
   event.preventDefault(); password = $("#password").value; $("#login-error").textContent = "";
-  try { await api("/api/admin/summary"); sessionStorage.setItem("gh_admin_password",password); await loadData(); }
+  try { await api("/api/admin/summary"); await loadData(); }
   catch (e) { $("#login-error").textContent = e.message; }
 }
 $("#login-form").addEventListener("submit", submitLogin);
-$("#logout").addEventListener("click", () => { sessionStorage.removeItem("gh_admin_password"); password = ""; $("#dashboard").hidden = true; $("#login-panel").hidden = false; $("#password").value = ""; });
+$("#logout").addEventListener("click", () => { password = ""; $("#dashboard").hidden = true; $("#login-panel").hidden = false; $("#password").value = ""; });
 $("#refresh").addEventListener("click", () => loadData().then(() => message("Данные обновлены",false)).catch(e => message(e.message,true)));
 $$("[data-tab]").forEach(b => b.addEventListener("click", () => { tab = b.dataset.tab; render(); }));
 function render() {

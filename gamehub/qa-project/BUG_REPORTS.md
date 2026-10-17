@@ -92,3 +92,15 @@
 - **Связанный тест:** `test_cms_image_urls_are_validated_before_css_background_interpolation`.
 - **Доказательства:** исходный diff и CI после коммита; реальная эксплуатация не подтверждена.
 - **Retest / Regression:** ожидается CI; ручной production retest Not Run.
+
+
+## GH-BUG-009 — CMS appearance form can partially save settings
+- **Статус:** Исправление внесено; CI retest ожидается.
+- **Компонент:** CMS frontend/API / оформление.
+- **Severity / Priority:** Major / P1: при сетевой или валидационной ошибке последовательные запросы могли сохранить часть настроек и оставить остальные старыми.
+- **Предусловия:** администратор открыт на вкладке «Оформление».
+- **Фактический результат до исправления:** форма отправляла отдельный PUT на каждый ключ; ошибка посреди цикла оставляла частично сохранённое состояние.
+- **Ожидаемый результат:** весь набор настроек валидируется до записи; при невалидном значении ничего из отправленного набора не меняется.
+- **Исправление:** добавлен `PUT /api/admin/cms/settings` с предварительной валидацией всего набора и записью в одной DB-транзакции; форма отправляет один запрос.
+- **Связанные тесты:** `test_cms_bulk_settings_validates_all_values_before_writing`, `test_cms_bulk_settings_requires_admin_and_rejects_unknown_keys`, `test_cms_appearance_form_uses_single_bulk_settings_request`.
+- **Retest / Regression:** CI ожидается; production retest Not Run.

@@ -41,4 +41,5 @@
 | Изображения карточек игр | GH-CMS-MEDIA-007…009 | — | Настройки CMS и медиатека добавлены в ветку; CI/production retest ожидаются |
 | Редизайн главной | GH-UI-REDESIGN-001…002 | — | Стили обновлены; ручная responsive-регрессия Not Run |
 | CMS image URL → CSS background | GH-CMS-SEC-006 | GH-BUG-008 | Автотест добавлен; CI retest ожидается, production Not Run |
+| Атомарное сохранение оформления CMS | GH-CMS-CRUD-008, GH-CMS-APPEAR-001…002 | GH-BUG-009 | API/frontend тесты добавлены; CI retest ожидается |
 

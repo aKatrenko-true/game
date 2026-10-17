@@ -36,9 +36,9 @@
 | Медиатека | GH-CMS-MEDIA-001…006 | TEST-005, TEST-007, TEST-009, TEST-010 | Сценарии загрузки/отказа добавлены; браузерный CI ранее испытывал тайм-ауты, итог нового прогона не подтверждён |
 | CMS responsive/клавиатура | GH-CMS-UI-001…003 | — | Ручной прогон Not Run |
 | Ошибки сохранения и регрессия сайта | GH-CMS-ERR-001…002, GH-CMS-REG-001 | TEST-010 | Частично плановое покрытие; ручной прогон Not Run |
-
-
+| Browser test persistence/re-auth | GH-CMS-ERR-003 | GH-BUG-007 | Исправление теста внесено; workflow run 39034195390 in progress |
 | Пароль не сохраняется в browser storage | GH-CMS-AUTH-006…007 | GH-BUG-007 | CI retest in progress; production retest Not Run |
 | Изображения карточек игр | GH-CMS-MEDIA-007…009 | — | Настройки CMS и медиатека добавлены в ветку; CI/production retest ожидаются |
 | Редизайн главной | GH-UI-REDESIGN-001…002 | — | Стили обновлены; ручная responsive-регрессия Not Run |
-| Browser test persistence/re-auth | GH-CMS-ERR-003 | GH-BUG-007 | Исправление теста внесено; workflow run 39034195390 in progress |
+
+

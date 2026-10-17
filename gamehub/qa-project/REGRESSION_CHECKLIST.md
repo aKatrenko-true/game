@@ -86,3 +86,5 @@
 - [ ] CI persistence-тест повторно авторизуется после reload и проверяет сохранность: GH-CMS-ERR-003.
 
 - [ ] CMS hero/game-card images accept only allowlisted HTTPS or supported base64 image data URLs; malformed values are not interpolated into CSS: GH-CMS-SEC-006 / GH-BUG-008.
+
+- [ ] CMS appearance settings submit as one validated request; invalid values do not partially persist: GH-CMS-CRUD-008 / GH-BUG-009.

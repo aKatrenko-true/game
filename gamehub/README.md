@@ -1,6 +1,6 @@
-# GameHub — QA portfolio project
+# GameHub - мой проект для практики QA
 
-GameHub is a learning project for testing a gaming community website. It includes a responsive UI, REST API, SQLite database, seeded demo players, teams and matches, and basic profile creation.
+Я развиваю GameHub как учебный проект, на котором разбираюсь в тестировании веб-приложения. В проекте есть адаптивный интерфейс, REST API, база SQLite, демонстрационные игроки, команды и матчи, а также создание профиля. Я постепенно добавляю проверки, разбираю найденные ошибки и фиксирую результаты в документации.
 
 ## Run on Windows
 1. Open PowerShell in this folder.
@@ -22,8 +22,8 @@ GameHub is a learning project for testing a gaming community website. It include
 - POST /api/matches
 - PATCH /api/matches/{id}
 
-## QA ideas
-Test profile creation, nickname uniqueness, validation boundaries, search and game filters, team creation, match creation, match status changes, empty states, and API response codes.
+## Что я проверяю
+Я проверяю создание профиля, уникальность никнейма, граничные значения валидации, поиск и фильтры по играм, создание команд и матчей, изменение статуса матча, пустые состояния и HTTP-коды API.
 
 ## Limitations
 This is a local educational app, not a production service. There is no password-based authentication, authorization, email verification, or production database configuration. Do not use real personal information.

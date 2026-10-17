@@ -508,7 +508,7 @@ def admin_delete_match(match_id: int, request: Request):
 class CMSSectionIn(BaseModel):
     title: str = Field(min_length=1, max_length=120)
     slug: str = Field(min_length=1, max_length=120, pattern=r"^[a-z0-9-]+$")
-    kind: str = Field(default="content", max_length=40)
+    kind: str = Field(default="content", max_length=40, pattern=r"^(hero|content|cards|players|teams|matches|gallery|custom)$")
     body: str = Field(default="", max_length=20000)
     image_url: str = Field(default="", max_length=2000000)
     visible: bool = True
@@ -517,7 +517,7 @@ class CMSSectionIn(BaseModel):
 class CMSSectionPatch(BaseModel):
     title: Optional[str] = Field(default=None, min_length=1, max_length=120)
     slug: Optional[str] = Field(default=None, min_length=1, max_length=120, pattern=r"^[a-z0-9-]+$")
-    kind: Optional[str] = Field(default=None, max_length=40)
+    kind: Optional[str] = Field(default=None, max_length=40, pattern=r"^(hero|content|cards|players|teams|matches|gallery|custom)$")
     body: Optional[str] = Field(default=None, max_length=20000)
     image_url: Optional[str] = Field(default=None, max_length=2000000)
     visible: Optional[bool] = None

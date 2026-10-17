@@ -42,3 +42,5 @@
 | Редизайн главной | GH-UI-REDESIGN-001…002 | — | Стили обновлены; ручная responsive-регрессия Not Run |
 
 
+
+| CMS image URL → CSS background | GH-CMS-SEC-006 | GH-BUG-008 | Автотест добавлен; CI retest ожидается, production Not Run |

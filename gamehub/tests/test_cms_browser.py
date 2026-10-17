@@ -231,6 +231,10 @@ def test_cms_section_edits_persist_after_reload(browser_app):
         page.wait_for_function("document.querySelector('#cms-notice')?.textContent.includes('Изменения сохранены')")
 
         page.reload(wait_until="domcontentloaded")
+        # Password is intentionally not restored from browser storage.
+        page.locator("#cms-login").wait_for(state="visible")
+        page.locator("#cms-password").fill(password)
+        page.locator("#cms-login-form button").click()
         page.wait_for_function("document.querySelector('#cms-app') && !document.querySelector('#cms-app').hidden")
         saved = page.locator(f'.cms-section[data-id="{section_id}"]')
         assert saved.locator('[data-field="title"]').input_value() == updated_title

@@ -15,7 +15,7 @@ def test_postgres_schema_and_seed_policy():
                 "WHERE table_schema='public'"
             ).fetchall()
         }
-    assert {"players", "teams", "matches", "users", "sessions", "lfg_posts"} <= tables
+    assert {"players", "teams", "matches", "users", "sessions", "lfg_posts", "cms_sections", "cms_settings"} <= tables
 
 
 def test_postgres_init_is_idempotent_and_seeds_demo_data_when_enabled(monkeypatch):
@@ -177,3 +177,65 @@ def test_sqlite_migration_script_copies_data_and_is_rerunnable(tmp_path, monkeyp
         assert con.execute("SELECT COUNT(*) FROM users WHERE id=71").fetchone()[0] == 1
         assert con.execute("SELECT COUNT(*) FROM players WHERE id=81").fetchone()[0] == 1
     assert source_path.exists()
+
+
+
+def test_postgres_cms_section_create_and_public_read(monkeypatch):
+    from fastapi.testclient import TestClient
+
+    monkeypatch.setenv("ADMIN_PASSWORD", "postgres-cms-test-password")
+    slug = "pg-cms-" + uuid.uuid4().hex[:10]
+    with TestClient(gamehub.app) as client:
+        created = client.post("/api/admin/cms/sections",
+            headers={"X-Admin-Password": "postgres-cms-test-password"},
+            json={"title": "Postgres CMS", "slug": slug, "kind": "custom",
+                  "body": "CMS database round trip", "visible": True, "sort_order": 9000})
+        assert created.status_code == 201, created.text
+        section_id = created.json()["id"]
+        assert isinstance(section_id, int) and section_id > 0
+        public = client.get("/api/cms/content")
+        assert public.status_code == 200
+        section = next(s for s in public.json()["sections"] if s["slug"] == slug)
+        assert section["id"] == section_id
+        assert section["body"] == "CMS database round trip"
+        deleted = client.delete(f"/api/admin/cms/sections/{section_id}",
+            headers={"X-Admin-Password": "postgres-cms-test-password"})
+        assert deleted.status_code == 200, deleted.text
+
+
+
+def test_postgres_cms_settings_and_hidden_media_persist(monkeypatch):
+    from fastapi.testclient import TestClient
+
+    monkeypatch_password = "postgres-cms-persist-test"
+    monkeypatch.setenv("ADMIN_PASSWORD", monkeypatch_password)
+    slug = "pg-cms-hidden-" + uuid.uuid4().hex[:10]
+    headers = {"X-Admin-Password": monkeypatch_password}
+    with TestClient(gamehub.app) as client:
+        created = client.post("/api/admin/cms/sections", headers=headers, json={
+            "title": "Hidden media", "slug": slug, "kind": "gallery",
+            "body": "Sensitive draft body", "image_url": "data:image/png;base64,dGVzdA==",
+            "visible": True, "sort_order": 9010,
+        })
+        assert created.status_code == 201, created.text
+        section_id = created.json()["id"]
+        saved = client.put("/api/admin/cms/settings/site_title", headers=headers,
+                           json={"value": "Postgres persistence check"})
+        assert saved.status_code == 200, saved.text
+
+        gamehub.init_cms_tables()
+        public = client.get("/api/cms/content").json()
+        assert public["settings"]["site_title"] == "Postgres persistence check"
+        section = next(item for item in public["sections"] if item["id"] == section_id)
+        assert section["body"] == "Sensitive draft body"
+        assert section["image_url"] == "data:image/png;base64,dGVzdA=="
+
+        hidden = client.patch(f"/api/admin/cms/sections/{section_id}", headers=headers,
+                              json={"visible": False})
+        assert hidden.status_code == 200, hidden.text
+        hidden_public = client.get("/api/cms/content").json()
+        section = next(item for item in hidden_public["sections"] if item["id"] == section_id)
+        assert section["visible"] in (False, 0)
+        assert section["body"] == ""
+        assert section["image_url"] == ""
+        assert client.delete(f"/api/admin/cms/sections/{section_id}", headers=headers).status_code == 200

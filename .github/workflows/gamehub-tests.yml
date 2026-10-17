@@ -47,6 +47,7 @@ jobs:
 
   api-tests:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: gamehub
@@ -61,5 +62,20 @@ jobs:
           cache-dependency-path: gamehub/requirements.txt
       - name: Install dependencies
         run: python -m pip install -r requirements.txt
-      - name: Run API tests
-        run: python -m pytest -q --ignore=tests/test_postgres.py
+      - name: Compile Python application and tests
+        run: python -m compileall -q app.py tests
+      - name: Check JavaScript syntax
+        run: |
+          node --check static/app.js
+          node --check static/cms.js
+          node --check static/cms-public.js
+          node --check static/lfg.js
+      - name: Run API and CMS regression tests
+        run: python -m pytest -q --ignore=tests/test_postgres.py --ignore=tests/test_cms_browser.py
+      - name: Install Chromium for browser tests
+        run: python -m playwright install --with-deps chromium
+      - name: Run real-browser CMS smoke tests
+        timeout-minutes: 6
+        env:
+          PYTHONUNBUFFERED: "1"
+        run: python -m pytest -vv -s --tb=short tests/test_cms_browser.py

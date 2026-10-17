@@ -87,7 +87,7 @@ class PostgresConnection:
             except Exception:
                 table = None
         has_returning = " RETURNING " in sql.upper()
-        needs_id = table in {"players","teams","matches","users","lfg_posts"} and not has_returning and "ON CONFLICT DO NOTHING" not in sql.upper()
+        needs_id = table in {"players","teams","matches","users","lfg_posts","cms_sections"} and not has_returning and "ON CONFLICT DO NOTHING" not in sql.upper()
         if needs_id:
             sql += " RETURNING id"
         cur = self._con.execute(sql, args)
@@ -502,6 +502,140 @@ def admin_delete_match(match_id: int, request: Request):
         if cur.rowcount == 0:
             raise HTTPException(status_code=404, detail="Матч не найден")
     return {"ok": True}
+
+
+# CMS: editable site content, sections, appearance and media.
+class CMSSectionIn(BaseModel):
+    title: str = Field(min_length=1, max_length=120)
+    slug: str = Field(min_length=1, max_length=120, pattern=r"^[a-z0-9-]+$")
+    kind: str = Field(default="content", max_length=40, pattern=r"^(hero|content|cards|players|teams|matches|gallery|custom)$")
+    body: str = Field(default="", max_length=20000)
+    image_url: str = Field(default="", max_length=2000000)
+    visible: bool = True
+    sort_order: int = Field(default=0, ge=0, le=10000)
+
+class CMSSectionPatch(BaseModel):
+    title: Optional[str] = Field(default=None, min_length=1, max_length=120)
+    slug: Optional[str] = Field(default=None, min_length=1, max_length=120, pattern=r"^[a-z0-9-]+$")
+    kind: Optional[str] = Field(default=None, max_length=40, pattern=r"^(hero|content|cards|players|teams|matches|gallery|custom)$")
+    body: Optional[str] = Field(default=None, max_length=20000)
+    image_url: Optional[str] = Field(default=None, max_length=2000000)
+    visible: Optional[bool] = None
+    sort_order: Optional[int] = Field(default=None, ge=0, le=10000)
+
+class CMSSettingIn(BaseModel):
+    value: str = Field(max_length=20000)
+
+CMS_PUBLIC_SETTING_KEYS = {
+    "site_title", "logo_text", "meta_description",
+    "menu_players", "menu_teams", "menu_matches", "menu_lfg",
+    "primary_color", "background_color",
+}
+
+def init_cms_tables():
+    with db() as c:
+        c.executescript("""
+        CREATE TABLE IF NOT EXISTS cms_sections(
+          id INTEGER PRIMARY KEY, title TEXT NOT NULL, slug TEXT NOT NULL UNIQUE,
+          kind TEXT NOT NULL DEFAULT 'content', body TEXT NOT NULL DEFAULT '',
+          image_url TEXT NOT NULL DEFAULT '', visible INTEGER NOT NULL DEFAULT 1,
+          sort_order INTEGER NOT NULL DEFAULT 0, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE TABLE IF NOT EXISTS cms_settings(
+          key TEXT PRIMARY KEY, value TEXT NOT NULL DEFAULT '',
+          updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+        """)
+        if c.execute("SELECT COUNT(*) FROM cms_sections").fetchone()[0] == 0:
+            c.executemany("INSERT INTO cms_sections(title,slug,kind,body,visible,sort_order) VALUES(?,?,?,?,?,?)", [
+              ("Найди свою команду. Играй на своём уровне.","hero","hero","Игроки, команды и матчи — в одном месте.",1,10),
+              ("Игры","games","cards","Выбирай игру и находи своё сообщество.",1,20),
+              ("Игроки","players","players","Игровое сообщество GameHub",1,30),
+              ("Команды","teams","teams","Собирай состав и играй вместе.",1,40),
+              ("Матчи","matches","matches","Следи за игровыми матчами.",1,50)
+            ])
+        for key,value in [("site_title","GameHub"),("logo_text","gamehub"),("primary_color","#c3ff68"),("background_color","#080b12"),("meta_description","Находи напарников, собирай команды и следи за игровыми матчами в GameHub.")]:
+            c.execute("INSERT OR IGNORE INTO cms_settings(key,value) VALUES(?,?)",(key,value))
+
+init_cms_tables()
+
+@app.get("/admin/cms", include_in_schema=False)
+def cms_admin_page():
+    return FileResponse(BASE / "static" / "cms.html")
+
+@app.get("/api/admin/cms/sections")
+def cms_sections(request: Request):
+    check_admin(request)
+    with db() as c:
+        return [dict(r) for r in c.execute("SELECT * FROM cms_sections ORDER BY sort_order,id").fetchall()]
+
+@app.post("/api/admin/cms/sections", status_code=201)
+def cms_create_section(p: CMSSectionIn, request: Request):
+    check_admin(request)
+    with db() as c:
+        try:
+            cur=c.execute("INSERT INTO cms_sections(title,slug,kind,body,image_url,visible,sort_order) VALUES(?,?,?,?,?,?,?)",
+              (p.title.strip(),p.slug,p.kind,p.body,p.image_url,1 if p.visible else 0,p.sort_order))
+        except Exception as exc:
+            if is_integrity_error(exc): raise HTTPException(status_code=409,detail="Раздел с таким адресным именем уже существует")
+            raise
+        return dict(c.execute("SELECT * FROM cms_sections WHERE id=?",(cur.lastrowid,)).fetchone())
+
+@app.patch("/api/admin/cms/sections/{section_id}")
+def cms_update_section(section_id: int, p: CMSSectionPatch, request: Request):
+    check_admin(request)
+    values=p.model_dump(exclude_unset=True)
+    if not values: raise HTTPException(status_code=422,detail="Нет изменений")
+    if "visible" in values: values["visible"]=1 if values["visible"] else 0
+    with db() as c:
+        if not c.execute("SELECT id FROM cms_sections WHERE id=?",(section_id,)).fetchone():
+            raise HTTPException(status_code=404,detail="Раздел не найден")
+        try:
+            values["updated_at"]="CURRENT_TIMESTAMP"
+            fields=[]; args=[]
+            for k,v in values.items():
+                if k=="updated_at": fields.append("updated_at=CURRENT_TIMESTAMP")
+                else: fields.append(k+"=?"); args.append(v.strip() if isinstance(v,str) else v)
+            args.append(section_id)
+            c.execute("UPDATE cms_sections SET "+",".join(fields)+" WHERE id=?",args)
+        except Exception as exc:
+            if is_integrity_error(exc): raise HTTPException(status_code=409,detail="Адресное имя уже занято")
+            raise
+        return dict(c.execute("SELECT * FROM cms_sections WHERE id=?",(section_id,)).fetchone())
+
+@app.delete("/api/admin/cms/sections/{section_id}")
+def cms_delete_section(section_id: int, request: Request):
+    check_admin(request)
+    with db() as c:
+        cur=c.execute("DELETE FROM cms_sections WHERE id=?",(section_id,))
+        if cur.rowcount==0: raise HTTPException(status_code=404,detail="Раздел не найден")
+    return {"ok":True}
+
+@app.get("/api/admin/cms/settings")
+def cms_get_settings(request: Request):
+    check_admin(request)
+    with db() as c: return {r["key"]:r["value"] for r in c.execute("SELECT key,value FROM cms_settings").fetchall()}
+
+@app.put("/api/admin/cms/settings/{key}")
+def cms_set_setting(key: str, p: CMSSettingIn, request: Request):
+    check_admin(request)
+    if key not in CMS_PUBLIC_SETTING_KEYS:
+        raise HTTPException(status_code=422,detail="Неизвестный ключ настройки")
+    if key.endswith("_color") and not __import__("re").fullmatch(r"#[0-9a-fA-F]{6}", p.value):
+        raise HTTPException(status_code=422,detail="Цвет должен быть в формате HEX, например #c3ff68")
+    with db() as c:
+        c.execute("INSERT INTO cms_settings(key,value,updated_at) VALUES(?,?,CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=CURRENT_TIMESTAMP",(key,p.value))
+    return {"key":key,"value":p.value}
+
+@app.get("/api/cms/content")
+def cms_public_content():
+    with db() as c:
+        sections=[dict(r) for r in c.execute("""SELECT id,CASE WHEN visible=1 THEN title ELSE '' END AS title,slug,kind,CASE WHEN visible=1 THEN body ELSE '' END AS body,CASE WHEN visible=1 THEN image_url ELSE '' END AS image_url,visible,sort_order FROM cms_sections ORDER BY sort_order,id""").fetchall()]
+        settings={r["key"]:r["value"] for r in c.execute(
+            "SELECT key,value FROM cms_settings WHERE key IN (" + ",".join("?" for _ in CMS_PUBLIC_SETTING_KEYS) + ")",
+            tuple(sorted(CMS_PUBLIC_SETTING_KEYS))).fetchall()}
+    return {"sections":sections,"settings":settings}
+
 
 # Player accounts: passwords are hashed and sessions are opaque, expiring tokens.
 SESSION_DAYS = 30

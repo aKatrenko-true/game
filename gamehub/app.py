@@ -446,7 +446,7 @@ def register_account(p: RegisterIn, request: Request):
         except sqlite3.IntegrityError:
             raise HTTPException(status_code=409, detail="Не удалось создать аккаунт: проверь никнейм")
     from fastapi.responses import JSONResponse
-    response = JSONResponse({"ok": True, "nickname": nickname})
+    response = JSONResponse({"ok": True, "nickname": nickname}, status_code=201)
     issue_session(user_id, request, response)
     return response
 

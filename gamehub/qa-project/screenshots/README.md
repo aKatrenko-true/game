@@ -26,7 +26,7 @@
 
 ### Подключение PostgreSQL
 
-<img alt="Статус PostgreSQL в Render" src="https://github.com/user-attachments/assets/07dc29a1-7cf2-460f-9900-5c50e2051d" />
+<img alt="Статус PostgreSQL в Render" src="https://github.com/user-attachments/assets/07dc29a1-7cf2-460f-9900-5c50e2051dc5" />
 
 Не публикуй Internal Database URL, токены или другие секреты.
 

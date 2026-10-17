@@ -7,6 +7,7 @@ from pathlib import Path
 bootstrap_db = Path(tempfile.gettempdir()) / f"gamehub-test-bootstrap-{os.getpid()}.db"
 os.environ["GAMEHUB_DB"] = str(bootstrap_db)
 
+import pytest
 from fastapi.testclient import TestClient
 import app as gamehub
 
@@ -99,3 +100,58 @@ def test_lfg_user_cannot_close_another_users_post():
         }).status_code == 201
         r = second.patch(f"/api/lfg/{post_id}", json={"status":"closed"})
         assert r.status_code == 403
+
+
+def test_login_logout_and_session_revocation():
+    with TestClient(gamehub.app) as client:
+        registered = client.post("/api/auth/register", json={
+            "nickname": "AuthFlow_01", "password": "TestPassword_123", "game": "CS2"
+        })
+        assert registered.status_code == 201
+        assert client.get("/api/auth/me").status_code == 200
+
+        logged_out = client.post("/api/auth/logout")
+        assert logged_out.status_code == 200
+        assert client.get("/api/auth/me").status_code == 401
+
+        login = client.post("/api/auth/login", json={
+            "nickname": "AuthFlow_01", "password": "TestPassword_123"
+        })
+        assert login.status_code == 200
+        assert client.get("/api/auth/me").status_code == 200
+
+
+def test_login_rejects_wrong_password():
+    with TestClient(gamehub.app) as client:
+        assert client.post("/api/auth/register", json={
+            "nickname": "AuthWrong_01", "password": "TestPassword_123", "game": "CS2"
+        }).status_code == 201
+        response = client.post("/api/auth/login", json={
+            "nickname": "AuthWrong_01", "password": "WrongPassword_123"
+        })
+        assert response.status_code == 401
+
+
+def test_admin_api_requires_configured_password(monkeypatch):
+    monkeypatch.delenv("ADMIN_PASSWORD", raising=False)
+    with TestClient(gamehub.app) as client:
+        response = client.get("/api/admin/summary")
+        assert response.status_code == 503
+
+
+def test_admin_api_rejects_wrong_password(monkeypatch):
+    monkeypatch.setenv("ADMIN_PASSWORD", "TestAdminPassword_123")
+    with TestClient(gamehub.app) as client:
+        response = client.get("/api/admin/summary", headers={
+            "X-Admin-Password": "WrongAdminPassword_123"
+        })
+        assert response.status_code == 401
+
+
+def test_admin_api_accepts_correct_password(monkeypatch):
+    monkeypatch.setenv("ADMIN_PASSWORD", "TestAdminPassword_123")
+    with TestClient(gamehub.app) as client:
+        response = client.get("/api/admin/summary", headers={
+            "X-Admin-Password": "TestAdminPassword_123"
+        })
+        assert response.status_code == 200

@@ -26,6 +26,8 @@
 | TEST-011 | CMS API / валидация типа блока | API принимал произвольное значение `kind`, хотя редактор предлагает фиксированный набор типов | Не было ограничения допустимых типов на уровне схемы API | Добавлена проверка разрешённых типов при создании и изменении раздела; добавлен API-тест на отказ для неизвестного типа | Изменение внесено; ожидается CI |
 | TEST-012 | Playwright / ожидание загрузки | Браузерные smoke-тесты могли зависать на `wait_until="networkidle"` | Ожидание полного сетевого простоя ненадёжно для страницы с фоновой сетевой активностью; тесты уже имеют отдельные ожидания конкретного состояния UI/API | Навигация и перезагрузка переведены на `domcontentloaded`; проверка готовности приложения остаётся через явные ожидания. Нужно подтвердить новым CI |
 
+| SEC-013 | CMS public image URL handling | CMS section and game-card image values were interpolated into CSS `url(...)`; hero images only replaced double quotes, while game-card images used a separate sanitization path | Persisted CMS values are untrusted input on the public page; inconsistent filtering could allow malformed URLs or CSS-breaking characters | Added shared `safeImageUrl` allowlist for HTTPS and supported base64 image data URLs; used it for hero and game-card backgrounds; added frontend contract test | Fix committed; CI retest pending |
+
 ## Текущий набор регрессионных сценариев
 
 - Главная страница открывается в Chromium на мобильном viewport; проверяются подключение API, видимость hero и отсутствие необработанных JS-ошибок.

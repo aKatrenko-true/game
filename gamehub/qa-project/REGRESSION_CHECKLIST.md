@@ -84,3 +84,5 @@
 - [ ] Стили главной проверены на 360/390/768/1024/1440 px: GH-UI-REDESIGN-001.
 - [ ] Клавиатурный фокус и основные переходы проверены после редизайна: GH-UI-REDESIGN-002.
 - [ ] CI persistence-тест повторно авторизуется после reload и проверяет сохранность: GH-CMS-ERR-003.
+
+- [ ] CMS hero/game-card images accept only allowlisted HTTPS or supported base64 image data URLs; malformed values are not interpolated into CSS: GH-CMS-SEC-006 / GH-BUG-008.

@@ -1,4 +1,14 @@
 (async function applyCMSContent(){
+ // Only allow explicit image URL schemes and reject CSS-breaking characters before
+ // interpolating a value into a CSS url(). CMS content is admin-authored, but the
+ // public page must still treat persisted values as untrusted input.
+ const safeImageUrl=value=>{
+  const url=String(value||"").trim();
+  if(/[\\\"'()<>\\s\\n\\r]/.test(url))return "";
+  if(/^https:\/\/[^\\s]+$/i.test(url))return url;
+  if(/^data:image\/(png|jpeg|webp|gif|svg\+xml);base64,[a-z0-9+/=]+$/i.test(url))return url;
+  return "";
+ };
  try{
   const r=await fetch("/api/cms/content",{cache:"no-store"});if(!r.ok)return;
   const data=await r.json(),settings=data.settings||{},sections=data.sections||[];
@@ -27,7 +37,8 @@
     const h=heroEl.querySelector("h1"),sub=heroEl.querySelector(".sub");
     if(h&&hero.title)h.textContent=hero.title;
     if(sub&&hero.body)sub.textContent=hero.body;
-    if(hero.image_url)heroEl.style.backgroundImage='linear-gradient(90deg,#0c111def 0%,#101321d9 48%,#151329a8 100%),url("'+hero.image_url.replace(/"/g,'%22')+'")';
+    const heroImage=safeImageUrl(hero.image_url);
+   if(heroImage)heroEl.style.backgroundImage='linear-gradient(90deg,#0c111def 0%,#101321d9 48%,#151329a8 100%),url("'+heroImage+'")';
    }
   }
   const gameImageSettings=[

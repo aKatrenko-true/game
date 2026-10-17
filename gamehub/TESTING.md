@@ -49,3 +49,6 @@
 
 
 | TEST-013 | Browser regression / повторная авторизация | CI run 39033952150: 7 из 8 browser CMS тестов прошли; `test_cms_section_edits_persist_after_reload` упал по тайм-ауту при ожидании авторизованного редактора после reload | Тест ожидал сохранённую авторизацию, хотя пароль намеренно больше не хранится в `sessionStorage` | Добавлены повторный ввод пароля после reload, кейсы GH-CMS-AUTH-006…007 и GH-CMS-ERR-003, баг-репорт GH-BUG-007; расширены кейсы изображений и редизайна | Исправление внесено в `feature/site-cms-admin`; retest CI 39034195390 в работе, не считать закрытым до успешного результата |
+
+
+| SEC-013 | CMS public image URL handling | CMS section and game-card image values were interpolated into CSS `url(...)`; hero images only replaced double quotes, while game-card images used a separate sanitization path | Persisted CMS values are untrusted input on the public page; inconsistent filtering could allow malformed URLs or CSS-breaking characters | Added one shared `safeImageUrl` allowlist for HTTPS and supported base64 image data URLs; used it for hero and game-card backgrounds; added frontend contract test | Fix committed; CI retest pending |

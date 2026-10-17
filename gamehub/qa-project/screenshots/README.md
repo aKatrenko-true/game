@@ -50,3 +50,18 @@
 ## 5. Безопасность
 
 Не публиковать пароли, токены, cookies, реальные персональные данные или открытые значения секретных переменных Render.
+
+
+## 6. Generated illustrative mockup - GH-BUG-008
+
+A generated visual mockup was created to demonstrate how a before/after evidence set for CMS image URL validation could be presented. **It is an illustration, not a screenshot of GameHub, DevTools, the database, API traffic, or CI.** Values and results depicted inside the mockup are illustrative and must not be cited as observed behavior.
+
+Use it only as a layout reference. The report's factual evidence remains the code diff and the actual CI results. A real browser screenshot should be captured from the application and linked here after the targeted test runs. The generated image has not been committed as a repository PNG in this change.
+
+## 7. Evidence rules
+
+- Keep historical screenshots labelled as historical.
+- Do not use generated mockups as proof that a bug reproduced, a fix worked, an API returned a specific status, a database contained a value, or tests passed.
+- For GH-BUG-008, capture the actual CMS input/error state, public page result and browser Console during a controlled test.
+- For GH-BUG-009, capture the actual API response and persisted settings before/after a deliberately invalid bulk update in a test database.
+- Update status only when the linked evidence exists and its commit/environment are recorded.

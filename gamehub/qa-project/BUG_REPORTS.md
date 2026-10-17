@@ -104,3 +104,41 @@
 - **Исправление:** добавлен `PUT /api/admin/cms/settings` с предварительной валидацией всего набора и записью в одной DB-транзакции; форма отправляет один запрос.
 - **Связанные тесты:** `test_cms_bulk_settings_validates_all_values_before_writing`, `test_cms_bulk_settings_requires_admin_and_rejects_unknown_keys`, `test_cms_appearance_form_uses_single_bulk_settings_request`.
 - **Retest / Regression:** CI ожидается; production retest Not Run.
+
+
+## Findings from repository review - candidates for targeted verification
+
+These items are not reported as reproduced runtime defects. They are review findings that need a focused test before changing their status.
+
+### GH-RISK-001 - No application-level rate limiting visible on authentication endpoints
+- **Status:** Code-review finding; runtime abuse scenario Not Run.
+- **Component:** Backend / registration and login.
+- **Priority:** P1 candidate; confirm exposure and existing edge protection before final severity.
+- **Observation:** The reviewed application code does not show an application-level rate limiter around registration/login and shared-password CMS admin authentication.
+- **Risk:** Repeated requests may consume resources or allow password-guessing attempts if no trusted upstream control exists.
+- **Verification:** Inspect deployment-level rate limiting; in a local test environment, send a controlled burst of invalid attempts and record status codes, response behavior, and logs. Do not perform load or brute-force testing against production.
+- **Expected result:** Repeated attempts are throttled with a documented response and without locking out unrelated users.
+- **Evidence:** Capture only after a real controlled run. No synthetic screenshot should be treated as runtime evidence.
+- **Retest:** Not Run.
+
+### GH-RISK-002 - CMS content has no version history or rollback workflow
+- **Status:** Product/recovery limitation from repository review; not a runtime defect.
+- **Component:** CMS / content recovery.
+- **Priority:** P1 candidate for production operations; impact depends on content criticality.
+- **Observation:** The reviewed CMS flow does not provide draft/version history/one-click rollback.
+- **Risk:** A mistaken save may immediately affect public content and require manual restoration.
+- **Verification:** Confirm current UI and API behavior; test whether previous content can be restored using documented backup/recovery procedures.
+- **Expected result:** A documented recovery path exists and has been exercised, or the limitation is explicitly accepted.
+- **Evidence:** Attach real UI/API/restore evidence only after execution.
+- **Retest:** Not Run.
+
+### GH-RISK-003 - CMS images are stored as base64 data URLs in the database
+- **Status:** Architecture/operations risk; not a confirmed defect.
+- **Component:** CMS media storage and database backups.
+- **Priority:** P2 candidate; assess actual payload limits, database growth and backup strategy.
+- **Observation:** Supported image data URLs can be persisted as CMS setting values.
+- **Risk:** Base64 media increases database and backup size; media recovery depends on database recovery.
+- **Verification:** Measure representative image payload size, check configured request/body limits and verify backup/restore behavior in a non-production environment.
+- **Expected result:** Limits and recovery behavior are documented and tested.
+- **Evidence:** Use measured payloads and actual backup/restore logs; do not invent measurements.
+- **Retest:** Not Run.

@@ -70,6 +70,22 @@ def test_cms_rejects_invalid_slug_and_duplicate_slug(client):
     assert duplicate.status_code == 409
 
 
+def test_cms_rejects_unknown_section_kind_on_create_and_update(client):
+    invalid_create = client.post("/api/admin/cms/sections", headers=admin_headers(), json={
+        "title": "Unknown block", "slug": "unknown-block", "kind": "script"
+    })
+    assert invalid_create.status_code == 422
+
+    existing = client.get("/api/admin/cms/sections", headers=admin_headers()).json()
+    hero = next(section for section in existing if section["slug"] == "hero")
+    invalid_update = client.patch(
+        f"/api/admin/cms/sections/{hero['id']}",
+        headers=admin_headers(),
+        json={"kind": "script"},
+    )
+    assert invalid_update.status_code == 422
+
+
 def test_cms_settings_persist_and_reject_unknown_keys_and_invalid_colors(client):
     saved = client.put("/api/admin/cms/settings/site_title", headers=admin_headers(),
                        json={"value": "My GameHub"})

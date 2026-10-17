@@ -613,6 +613,33 @@ def cms_delete_section(section_id: int, request: Request):
         if cur.rowcount==0: raise HTTPException(status_code=404,detail="Раздел не найден")
     return {"ok":True}
 
+class CMSSettingsBulkIn(BaseModel):
+    settings: dict[str, str] = Field(min_length=1, max_length=20)
+
+
+@app.put("/api/admin/cms/settings")
+def cms_set_settings_bulk(p: CMSSettingsBulkIn, request: Request):
+    """Validate the entire settings form before writing any values."""
+    check_admin(request)
+    values = p.settings
+    unknown = set(values) - CMS_PUBLIC_SETTING_KEYS
+    if unknown:
+        raise HTTPException(status_code=422, detail="Неизвестный ключ настройки")
+    for key, value in values.items():
+        if len(value) > 2100000:
+            raise HTTPException(status_code=422, detail="Значение настройки слишком длинное")
+        if key.endswith("_color") and not __import__("re").fullmatch(r"#[0-9a-fA-F]{6}", value):
+            raise HTTPException(status_code=422, detail="Цвет должен быть в формате HEX, например #c3ff68")
+    with db() as c:
+        for key, value in values.items():
+            c.execute(
+                "INSERT INTO cms_settings(key,value,updated_at) VALUES(?,?,CURRENT_TIMESTAMP) "
+                "ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=CURRENT_TIMESTAMP",
+                (key, value),
+            )
+    return {"ok": True, "updated": list(values)}
+
+
 @app.get("/api/admin/cms/settings")
 def cms_get_settings(request: Request):
     check_admin(request)

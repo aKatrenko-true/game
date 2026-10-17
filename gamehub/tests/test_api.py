@@ -96,6 +96,6 @@ def test_lfg_user_cannot_close_another_users_post():
     with TestClient(gamehub.app) as second:
         assert second.post("/api/auth/register", json={
             "nickname":"LfgOther_01","password":"TestPassword_123","game":"CS2"
-        }).status_code == 200
+        }).status_code == 201
         r = second.patch(f"/api/lfg/{post_id}", json={"status":"closed"})
         assert r.status_code == 403

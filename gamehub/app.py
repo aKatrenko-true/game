@@ -524,12 +524,13 @@ class CMSSectionPatch(BaseModel):
     sort_order: Optional[int] = Field(default=None, ge=0, le=10000)
 
 class CMSSettingIn(BaseModel):
-    value: str = Field(max_length=20000)
+    value: str = Field(max_length=2100000)
 
 CMS_PUBLIC_SETTING_KEYS = {
     "site_title", "logo_text", "meta_description",
     "menu_players", "menu_teams", "menu_matches", "menu_lfg",
     "primary_color", "background_color",
+    "game_cs2_image", "game_valorant_image", "game_wd_image", "game_apex_image",
 }
 
 def init_cms_tables():
@@ -554,7 +555,8 @@ def init_cms_tables():
               ("Команды","teams","teams","Собирай состав и играй вместе.",1,40),
               ("Матчи","matches","matches","Следи за игровыми матчами.",1,50)
             ])
-        for key,value in [("site_title","GameHub"),("logo_text","gamehub"),("primary_color","#c3ff68"),("background_color","#080b12"),("meta_description","Находи напарников, собирай команды и следи за игровыми матчами в GameHub.")]:
+        for key,value in [("site_title","GameHub"),("logo_text","gamehub"),("primary_color","#c3ff68"),("background_color","#080b12"),("meta_description","Находи напарников, собирай команды и следи за игровыми матчами в GameHub."),
+            ("game_cs2_image",""),("game_valorant_image",""),("game_wd_image",""),("game_apex_image","")]:
             c.execute("INSERT OR IGNORE INTO cms_settings(key,value) VALUES(?,?)",(key,value))
 
 init_cms_tables()

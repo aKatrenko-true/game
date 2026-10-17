@@ -40,3 +40,19 @@ def test_cms_editor_exposes_sections_appearance_and_media_workflows():
     assert 'renderAppearance()' in editor
     assert 'renderMedia()' in editor
     assert '1.5*1024*1024' in editor
+
+ 
+def test_admin_password_is_not_persisted_in_browser_storage():
+    admin = (STATIC / "admin.js").read_text(encoding="utf-8")
+    cms = (STATIC / "cms.js").read_text(encoding="utf-8")
+    assert 'sessionStorage.getItem("gh_admin_password")' not in admin
+    assert 'sessionStorage.setItem("gh_admin_password"' not in admin
+    assert 'sessionStorage.getItem("gh_admin_password")' not in cms
+    assert 'sessionStorage.setItem("gh_admin_password"' not in cms
+
+def test_game_card_images_are_editable_in_media_library_and_publicly_applied():
+    editor = (STATIC / "cms.js").read_text(encoding="utf-8")
+    public_script = (STATIC / "cms-public.js").read_text(encoding="utf-8")
+    for key in ("game_cs2_image", "game_valorant_image", "game_wd_image", "game_apex_image"):
+        assert key in editor and key in public_script
+    assert 'JSON.stringify({image_url:dataUrl})' in editor

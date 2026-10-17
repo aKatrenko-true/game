@@ -4,8 +4,8 @@
  // public page must still treat persisted values as untrusted input.
  const safeImageUrl=value=>{
   const url=String(value||"").trim();
-  if(/[\\\"'()<>\\s\\n\\r]/.test(url))return "";
-  if(/^https:\/\/[^\\s]+$/i.test(url))return url;
+  if(/["'()<>\\\s\n\r]/.test(url))return "";
+  if(/^https:\/\/[^\s]+$/i.test(url))return url;
   if(/^data:image\/(png|jpeg|webp|gif|svg\+xml);base64,[a-z0-9+/=]+$/i.test(url))return url;
   return "";
  };

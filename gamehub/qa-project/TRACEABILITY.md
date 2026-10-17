@@ -40,7 +40,5 @@
 | Пароль не сохраняется в browser storage | GH-CMS-AUTH-006…007 | GH-BUG-007 | CI retest in progress; production retest Not Run |
 | Изображения карточек игр | GH-CMS-MEDIA-007…009 | — | Настройки CMS и медиатека добавлены в ветку; CI/production retest ожидаются |
 | Редизайн главной | GH-UI-REDESIGN-001…002 | — | Стили обновлены; ручная responsive-регрессия Not Run |
-
-
-
 | CMS image URL → CSS background | GH-CMS-SEC-006 | GH-BUG-008 | Автотест добавлен; CI retest ожидается, production Not Run |
+
